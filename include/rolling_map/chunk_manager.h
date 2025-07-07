@@ -119,7 +119,7 @@ namespace RM
          * @brief Set the center coord
          * @param Bonxai::CoordT& source
          */
-        void setCenterCoord(Bonxai::CoordT& source);
+        void setSourceCoord(Bonxai::CoordT& source);
 
         /**
          * @brief Update chunks in a best effort manner when the centers are not the same
@@ -273,7 +273,7 @@ namespace RM
         //27 sized fixed array of booleans indicating if the chunk is clean
         std::array<std::pair<ChunkKey,ChunkState>,27> chunk_states_;
         //The center coordinate
-        Bonxai::CoordT center_coord_;
+        Bonxai::CoordT current_source_coord_;
         //Flag to check if the first map has been initted
         bool is_init_ {false};
 

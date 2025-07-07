@@ -56,15 +56,15 @@ namespace RM
         return;
     }
 
-    void ChunkManager::setCenterCoord(Bonxai::CoordT& source)
+    void ChunkManager::setSourceCoord(Bonxai::CoordT& source)
     {
-        center_coord_ = source;
+        current_source_coord_ = source;
     }
 
     void ChunkManager::initFirstChunks(Bonxai::CoordT &source_chunk,
                                        std::vector<Bonxai::CoordT> &chunks_in_play)
     {
-        setCenterCoord(source_chunk);
+        setSourceCoord(source_chunk);
 
         for (auto &c : chunks_in_play)
         {
@@ -98,9 +98,9 @@ namespace RM
         }
 
         //Check the current center coord
-        bool is_same_center = (center_coord_ == source_chunk);
+        bool is_same_source = (current_source_coord_ == source_chunk);
 
-        if (!is_same_center)
+        if (!is_same_source)
         {
             //update whatever maps you can
             bestEffortChunkUpdate(points,origin,source_chunk,chunks_in_play);
@@ -145,18 +145,18 @@ namespace RM
         if (delta == C{0, 0, 0}) return ChunkType::SOURCE;
 
         // Faces
-        if (delta == C{1, 0, 0}) return ChunkType::FACE_F;
-        if (delta == C{-1, 0, 0}) return ChunkType::FACE_B;
-        if (delta == C{0, 1, 0}) return ChunkType::FACE_L;
-        if (delta == C{0, -1, 0}) return ChunkType::FACE_R;
-        if (delta == C{0, 0, 1}) return ChunkType::FACE_T;
-        if (delta == C{0, 0, -1}) return ChunkType::FACE_D;
+        if (delta == C{1, 0, 0})    return ChunkType::FACE_F;
+        if (delta == C{-1, 0, 0})   return ChunkType::FACE_B;
+        if (delta == C{0, 1, 0})    return ChunkType::FACE_L;
+        if (delta == C{0, -1, 0})   return ChunkType::FACE_R;
+        if (delta == C{0, 0, 1})    return ChunkType::FACE_T;
+        if (delta == C{0, 0, -1})   return ChunkType::FACE_D;
 
         // Edges
-        if (delta == C{-1, -1, 0}) return ChunkType::EDGE_B_R;
-        if (delta == C{-1,  1, 0}) return ChunkType::EDGE_B_L;
-        if (delta == C{ 1, -1, 0}) return ChunkType::EDGE_F_R;
-        if (delta == C{ 1,  1, 0}) return ChunkType::EDGE_F_L;
+        if (delta == C{-1, -1, 0})  return ChunkType::EDGE_B_R;
+        if (delta == C{-1,  1, 0})  return ChunkType::EDGE_B_L;
+        if (delta == C{ 1, -1, 0})  return ChunkType::EDGE_F_R;
+        if (delta == C{ 1,  1, 0})  return ChunkType::EDGE_F_L;
         if (delta == C{-1,  0, -1}) return ChunkType::EDGE_B_D;
         if (delta == C{-1,  0,  1}) return ChunkType::EDGE_B_T;
         if (delta == C{ 1,  0, -1}) return ChunkType::EDGE_F_D;
@@ -296,7 +296,7 @@ namespace RM
                 rq_size_ --;
             }
             auto [key2read,coord2read] = pair2read;
-            ChunkType new_chunk_type = getChunkType(center_coord_,coord2read);
+            ChunkType new_chunk_type = getChunkType(current_source_coord_,coord2read);
             size_t target_idx = chunkTypeToIndex(new_chunk_type);
 
             auto chunk_path = this->chunkKeyToChunkPath(key2read);
