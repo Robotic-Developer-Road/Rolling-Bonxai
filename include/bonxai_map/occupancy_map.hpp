@@ -80,13 +80,15 @@ namespace Bonxai
         using Vector3D = Eigen::Vector3d;
 
         /**
-         * @brief Constructor
+         * @brief Constructor that accepts a resolution only.
+         * @details User must rememeber to set options later
          * @param double resolution
          */
         explicit OccupancyMap(double resolution);
 
         /**
-         * @brief Constructor
+         * @brief Constructor that accepts resolution and options
+         * @details Prefer this when creating a new map
          * @param double resolution
          * @param MapUtils::OccupancyOptions& options containing the occupancy options
          */
@@ -94,6 +96,7 @@ namespace Bonxai
 
         /**
          * @brief Constructor overload that accepts a rvalue reference to the grid
+         * @details Prefer this constructor when a new map is to be created from a deserialized grid
          * @param double resolution
          * @param MapUtils::OccupancyOptions& options
          * @param VoxelGrid<MapUtils::CellOcc>&& grid
