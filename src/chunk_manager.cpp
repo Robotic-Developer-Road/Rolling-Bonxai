@@ -302,8 +302,8 @@ namespace RM
             auto chunk_path = this->chunkKeyToChunkPath(key2read);
             bool path_exists = chunkFileExists(key2read);
 
-            MapPtr new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution);
-            new_map->setOptions(moption_);
+            //Initialise new map
+            MapPtr new_map = nullptr;
             //Deserialize chunk
             if (std::ifstream infile{chunk_path,std::ios::binary};path_exists && infile.is_open())
             {
@@ -313,9 +313,15 @@ namespace RM
                 Bonxai::HeaderInfo info = Bonxai::GetHeaderInfo(header);
                 auto loaded_grid = Bonxai::Deserialize<Bonxai::MapUtils::CellOcc>(infile,info);
                 
-                //move the new grid
-                new_map->setGrid(std::move(loaded_grid));
+                //Create new map using the constructor that a
+                new_map = std::make_shared<Bonxai::OccupancyMap>(moption_,std::move(loaded_grid));
+                
                 infile.close();
+            }
+            else
+            {
+                //just create a fresh new map using resolutions
+                new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
             }
 
             if (!chunks_[target_idx] && chunk_states_[target_idx].second == ChunkState::UNSET)
