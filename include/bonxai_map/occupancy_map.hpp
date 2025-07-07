@@ -92,6 +92,14 @@ namespace Bonxai
          */
         explicit OccupancyMap(double resolution, MapUtils::OccupancyOptions& options);
 
+        /**
+         * @brief Constructor overload that accepts a rvalue reference to the grid
+         * @param double resolution
+         * @param MapUtils::OccupancyOptions& options
+         * @param VoxelGrid<MapUtils::CellOcc>&& grid
+         */
+        explicit OccupancyMap(MapUtils::OccupancyOptions& options, VoxelGrid<MapUtils::CellOcc>&& grid);
+
         // Default Destructor
         ~OccupancyMap() = default;
 
@@ -262,7 +270,7 @@ namespace Bonxai
         std::vector<CoordT> hit_coords_;
 
         //Accessor to the grid. Generate as little times as possible!
-        // mutable Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor accessor_;
+        mutable Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor accessor_;
 
         bool accessor_bound_ {false};
 

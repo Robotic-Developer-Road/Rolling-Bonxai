@@ -79,24 +79,37 @@ namespace Bonxai
 
     OccupancyMap::OccupancyMap(double resolution)
     :
-    grid_(resolution)
+    grid_(resolution),
+    accessor_(grid_.createAccessor())
     {
-        accessor_bound_= false;
+        accessor_bound_= true;
     }
 
     OccupancyMap::OccupancyMap(double resolution , MapUtils::OccupancyOptions& options)
     :
     grid_(resolution),
+    options_(options),
+    accessor_(grid_.createAccessor())
+    {
+        accessor_bound_= true;
+    }
+
+    OccupancyMap::OccupancyMap(MapUtils::OccupancyOptions& options, VoxelGrid<MapUtils::CellOcc>&& grid)
+    :
+    grid_(std::move(grid)),
+    accessor_(grid_.createAccessor()),
     options_(options)
     {
-        accessor_bound_= false;
+        accessor_bound_= true;
     }
+    
 
     OccupancyMap::OccupancyMap(OccupancyMap&& other) noexcept
     : 
-    grid_(std::move(other.grid_))
+    grid_(std::move(other.grid_)),
+    accessor_(grid_.createAccessor())
     {
-        accessor_bound_= false;
+        accessor_bound_= true;
     }
 
     OccupancyMap& OccupancyMap::operator=(OccupancyMap&& other) noexcept
