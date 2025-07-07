@@ -14,8 +14,6 @@ s_probability_hit: 0.7
 s_probability_miss: 0.4
 
 c_chunk_dim: 32
-c_chunk_neiborhood: 6
-c_chunk_cache_capacity: 7
 c_chunk_folder_path: "/home/kratos/dsta/mapping/code/paged_voxel_mapping/src/Rolling-Bonxai/chunks"
 
 use_sor_filter: false
