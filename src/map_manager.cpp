@@ -5,8 +5,7 @@ namespace RM
 {
     MapManager::MapManager()
     {
-        //Create Chunk manaer
-        // chunk_manager_ = ChunkManager(sp_,mp_,cp_);
+ 
         return;
     }
 
@@ -16,7 +15,10 @@ namespace RM
     mp_{map_params},
     cp_{chunk_params},
     inv_resolution_{1.0 / mp_.resolution}
-    {}
+    {
+        //Create Chunk manaer
+        chunk_manager_ = std::make_unique<ChunkManager>(sp_,mp_,cp_);
+    }
     
     void MapManager::updateMap(PCLPointCloud& points,PCLPoint& origin)
     {
@@ -27,9 +29,8 @@ namespace RM
         auto chunk_coord_sensor = this->voxelCoordToChunkCoord(voxel_id_sensor);
 
         //How many neibors and how many chunks are in play
-        size_t neibors = cp_.chunk_neib;
-        if (neibors != 6 && neibors != 18 && neibors !=26) {neibors = 26;}
-        const size_t num_chunks_in_play = neibors + 1; //neibor chunks and me
+        constexpr size_t neibors = 26;
+        constexpr size_t num_chunks_in_play = neibors + 1; //neibor chunks and me
 
         //Create a vector containing all the chunks in play. Should be a maximum of 27
         std::vector<Bonxai::CoordT> chunks_in_play;
@@ -43,64 +44,23 @@ namespace RM
         //Get the neibor coordinates
         auto face_neibors = getFaceNeibors(chunk_coord_sensor);
         auto edge_neibors = getEdgeNeibors(chunk_coord_sensor);
-        auto corner_neibors = this->getCornerNeibors(chunk_coord_sensor);
+        auto corner_neibors = getCornerNeibors(chunk_coord_sensor);
 
-        //Populate the array containing chunks in play: Sensor's Chunks , 6 Face Neibors, 12 Edge Neibors, 8 Corner Neibors
-        switch (neibors)
-        {
-            case 6:
-                //6 Neibors (Only Face)
-                for (auto &nbf : face_neibors)
-                {
-                    chunks_in_play.push_back(nbf);
-                }
-                break;
-            
-            case 18:
-                //6 Face and 12 Edge
-                for (auto &nbf : face_neibors)
-                {
-                    chunks_in_play.push_back(nbf);
-                }
-
-                for (auto &nbe : edge_neibors)
-                {
-                    chunks_in_play.push_back(nbe);
-                }
-                break;
-
-            case 26:
-                //6 Face, 12 Edge and 8 Corner
-                for (auto &nbf : face_neibors)
-                {
-                    chunks_in_play.push_back(nbf);
-                }
-
-                for (auto &nbe : edge_neibors)
-                {
-                    chunks_in_play.push_back(nbe);
-                }
-
-                for (auto &nbc : corner_neibors)
-                {
-                    chunks_in_play.push_back(nbc);
-                }
-                break;
-        }
+        for (const auto &face : face_neibors) {chunks_in_play.push_back(face);}
+        for (const auto &edge : edge_neibors) {chunks_in_play.push_back(edge);}
+        for (const auto &corner : corner_neibors) {chunks_in_play.push_back(corner);}
+        
 
         if (first_update_)
         {
-            //chunk_manager_.initFirstChunks(source_chunk,chunks_in_play);
-            //first_update_ = false;
+            chunk_manager_->initFirstChunks(chunk_coord_sensor,chunks_in_play);
+            first_update_ = false;
         }
 
         else
         {
-            //chunk_manager_.updateChunks(points,source_chunk,chunks_in_play);
+            chunk_manager_->updateChunks(points,origin,chunks_in_play);
         }
-
-
-
     }
 
     std::array<Bonxai::CoordT,6> MapManager::getFaceNeibors(const Bonxai::CoordT& coord)
@@ -147,7 +107,7 @@ namespace RM
             {coord.x - 1, coord.y - 1, coord.z - 1}, //back  - right  -  down
             {coord.x - 1, coord.y - 1, coord.z + 1}, //back  - right  -  up
             {coord.x - 1, coord.y + 1, coord.z - 1}, //back  - left   -  down
-            {coord.x - 1, coord.y + 1, coord.z + 1}, //back  - right  -  up
+            {coord.x - 1, coord.y + 1, coord.z + 1}, //back  - left  -  up
             {coord.x + 1, coord.y - 1, coord.z - 1}, //front - right  -  down
             {coord.x + 1, coord.y - 1, coord.z + 1}, //front - right  -  up
             {coord.x + 1, coord.y + 1, coord.z - 1}, //front - left   -  down
@@ -221,10 +181,5 @@ namespace RM
 
     }
 
-    MapManager::ChunkKey MapManager::chunkCoordToChunkKey(const Bonxai::CoordT& cc)
-    {
-        std::string key = std::to_string(cc.x) + "_" + std::to_string(cc.y) + "_" + std::to_string(cc.z);
-        return key;
-    }
 
 }// namespace RM

@@ -35,8 +35,6 @@ struct SensorParams
 struct ChunkParams
 {
     uint chunk_dim {32}; //int chunk_dim x chunk_dim x chunk_dim
-    uint chunk_neib {6}; //6, 18 or 26 cube neigbour
-    uint chunk_cache_capacity {7}; //Number of chunks to be in memory
     std::string chunk_folder_path {"chunk_folder"}; //path to the chunk folder
 };
 }

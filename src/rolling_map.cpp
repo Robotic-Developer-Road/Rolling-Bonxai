@@ -110,8 +110,6 @@ void RollingMapNode::loadParameters()
     
     //Load Chunk Parameters
     this->chunk_params_.chunk_dim            = this->get_parameter("c_chunk_dim").as_int();
-    this->chunk_params_.chunk_neib           = this->get_parameter("c_chunk_neiborhood").as_int();
-    this->chunk_params_.chunk_cache_capacity = this->get_parameter("c_chunk_cache_capacity").as_int();
     this->chunk_params_.chunk_folder_path    = this->get_parameter("c_chunk_folder_path").as_string();
 
     //Load PCL Filter Parameters
@@ -145,8 +143,6 @@ void RollingMapNode::printParameters()
     RCLCPP_INFO_STREAM(this->get_logger(), "  Sensor probability miss: " << this->sensor_params_.probability_miss);
     RCLCPP_INFO_STREAM(this->get_logger(), "  CHUNK PARAMETERS:");
     RCLCPP_INFO_STREAM(this->get_logger(), "  Chunk dim: " << this->chunk_params_.chunk_dim);
-    RCLCPP_INFO_STREAM(this->get_logger(), "  Chunk neiborhood: " << this->chunk_params_.chunk_neib);
-    RCLCPP_INFO_STREAM(this->get_logger(), "  Chunk cache capacity: " << this->chunk_params_.chunk_cache_capacity);
     RCLCPP_INFO_STREAM(this->get_logger(), "  Chunk folder path: " << this->chunk_params_.chunk_folder_path);
 }
 
@@ -159,13 +155,13 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     size_t filtered_index = 0;
     for (const auto& point : pc.points) 
     {
-        if (std::isfinite(point.x) && std::isfinite(point.y) && std::isfinite(point.z)) 
+        const bool valid_xyz = std::isfinite(point.x) && std::isfinite(point.y) && std::isfinite(point.z);
+        const bool in_z_bounds = point.z >= sensor_params_.min_z && point.z <= sensor_params_.max_z;
+        const float euclid_squared = point.x * point.x + point.y * point.y + point.z * point.z;
+        const float min_range_squared = sensor_params_.min_range * sensor_params_.min_range;
+        if (valid_xyz && in_z_bounds && (euclid_squared > min_range_squared))
         {
-            if (point.z >= this->sensor_params_.min_z && point.z <= this->sensor_params_.max_z)
-            {
-                pc.points[filtered_index++] = point;
-            }
-            
+            pc.points[filtered_index++] = point;
         }
     }
     pc.resize(filtered_index);

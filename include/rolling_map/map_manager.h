@@ -2,6 +2,7 @@
 #define MAP_MANAGER_H
 
 #include "bonxai_map/occupancy_map.hpp"
+#include "rolling_map/chunk_manager.h"
 #include "rolling_map/rolling_map_params.h"
 
 #include <pcl/point_cloud.h>
@@ -113,15 +114,8 @@ namespace RM
          */
         Bonxai::CoordT mapFramePointToChunkFrameCoord(const PCLPoint& mP);
 
-        /**
-         * @brief Maps a chunk coordinate to a chunk key. If coordinate it (x,y,z), then key is x_y_z.
-         * @param const Bonxai::CoordT& cc
-         * @return ChunkKey
-         */
-        ChunkKey chunkCoordToChunkKey(const Bonxai::CoordT& cc);
-
         //Chunk Manager
-        //ChunkManager chunk_manager_;
+        std::unique_ptr<ChunkManager> chunk_manager_ {nullptr};
 
         //parameters
         SensorParams sp_;
