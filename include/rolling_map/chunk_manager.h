@@ -68,12 +68,34 @@ namespace RM
         ChunkManager& operator=(const ChunkManager&) = default;
         ChunkManager& operator=(ChunkManager&&) = default;
 
+        /**
+         * @brief Initialize the first set of chunks
+         * @param Bonxai::CoordT &source_chunk
+         * @param std::vector<Bonxai::CoordT> &nb_chunks
+         */
         void initFirstChunks(Bonxai::CoordT &source_chunk,
                              std::vector<Bonxai::CoordT> &nb_chunks);
-        
+
+        /**
+         * @brief Update the chunks
+         * @param PCLPointCloud &points
+         * @param PCLPoint &origin
+         * @param std::vector<Bonxai::CoordT> &nb_chunks
+         */
         void updateChunks(PCLPointCloud &points,PCLPoint &origin,
                           std::vector<Bonxai::CoordT> &nb_chunks);
+        
+        /**
+         * @brief Get all the occupied voxels
+         * @param std::vector<PCLPoint>& points
+         */
+        void getAllOccupiedVoxels(PCLPointCloud& points);
 
+        /**
+         * @brief Get all the free voxels
+         * @param std::vector<PCLPoint>& points
+         */
+        void getAllFreeVoxels(PCLPointCloud& points);
 
     private:
         enum class ChunkType : size_t

@@ -300,6 +300,64 @@ namespace RM
         touched_once_.fill(false);
     }
 
+    void ChunkManager::getAllOccupiedVoxels(PCLPointCloud& points)
+    {
+        if (isReadIORunning() || isWriteIORunning())
+        {
+            return;
+        }
+        points.clear();
+
+        for (int i = 0 ; i < chunks_.size() ; ++i)
+        {
+            auto key = chunk_states_[i].first;
+            Bonxai::CoordT cc = this->chunkKeyToChunkCoord(key);
+            Bonxai::CoordT cc_origin_voxel_map = chunkCoordToVoxelCoord(cc);
+
+            auto visitor = [this,&cc_origin_voxel_map,&points](Bonxai::MapUtils::CellOcc &cell,const Bonxai::CoordT& coord)
+            {
+                if (cell.probability_log > moption_.occupancy_threshold_log)
+                {
+                    Bonxai::CoordT map_voxel = coord + cc_origin_voxel_map;
+                    auto pcpt = this->voxelCoordToMapPoint(map_voxel);
+                    points.push_back(pcpt);
+                }
+
+            };
+
+            chunks_[i] -> getGrid().forEachCell(visitor); 
+        }
+    }
+
+    void ChunkManager::getAllFreeVoxels(PCLPointCloud& points)
+    {
+        if (isReadIORunning() || isWriteIORunning())
+        {
+            return;
+        }
+
+        points.clear();
+
+        for (int i = 0 ; i < chunks_.size() ; ++i)
+        {
+            auto key = chunk_states_[i].first;
+            Bonxai::CoordT cc = this->chunkKeyToChunkCoord(key);
+            Bonxai::CoordT cc_origin_voxel_map = chunkCoordToVoxelCoord(cc);
+
+            auto visitor = [this,&cc_origin_voxel_map,&points](Bonxai::MapUtils::CellOcc &cell,const Bonxai::CoordT& coord)
+            {
+                if (cell.probability_log < moption_.occupancy_threshold_log)
+                {
+                    Bonxai::CoordT map_voxel = coord + cc_origin_voxel_map;
+                    auto pcpt = this->voxelCoordToMapPoint(map_voxel);
+                    points.push_back(pcpt);
+                }
+            };
+            chunks_[i] -> getGrid().forEachCell(visitor); 
+        }
+        
+    }
+
     void ChunkManager::updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &nb_chunks)
     {   
         /*

@@ -58,6 +58,17 @@ namespace RM
         }
     }
 
+    
+    void MapManager::getFreeVoxels(PCLPointCloud& points)
+    {
+        chunk_manager_->getAllFreeVoxels(points);
+    }
+
+    void MapManager::getOccupiedVoxels(PCLPointCloud& points)
+    {
+        chunk_manager_->getAllOccupiedVoxels(points);
+    }
+
     std::array<Bonxai::CoordT,6> MapManager::getFaceNeibors(const Bonxai::CoordT& coord)
     {
         //Follow the right-handle rule system X(front),Y(Left), Z(Up)

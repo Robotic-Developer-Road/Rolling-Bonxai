@@ -42,6 +42,20 @@ namespace RM
          */
         void updateMap(PCLPointCloud& points,PCLPoint& origin);
 
+        /**
+         * @brief Get the free voxels in the map
+         * @param std::vector<PCLPoint>& points
+         * @return void
+         */
+        void getFreeVoxels(PCLPointCloud& points);
+
+        /**
+         * @brief Get the occupied voxels in the map
+         * @param std::vector<PCLPoint>& points
+         * @return void
+         */
+        void getOccupiedVoxels(PCLPointCloud& points);
+
     private:
 
         /////////////////////////

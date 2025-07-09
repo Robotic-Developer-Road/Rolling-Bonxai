@@ -14,7 +14,14 @@ rclcpp::Node("rolling_map_node",options)
     map_manager_ = MapManager(sensor_params_,map_params_,chunk_params_);
     
     auto qos = rclcpp::QoS{1};
-    this->voxel_center_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/voxel_centers", qos);
+    if (this->viz_free_)
+    {
+        this->free_voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/free_voxel_centers", qos);
+    }
+    if (this->viz_occupied_)
+    {
+        this->occupied_voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/occupied_voxel_centers", qos);
+    }
 
     //Setup the TF2 objects
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -205,6 +212,26 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     
     //Chunk Updates happen here!
     map_manager_.updateMap(world_points,global_sensor_position);
+
+    //Get the visualization stuff
+    if (viz_occupied_)
+    {
+        
+        map_manager_.getOccupiedVoxels(occupied_voxels_);
+        sensor_msgs::msg::PointCloud2 cloud_occ_msg;
+        pcl::toROSMsg(occupied_voxels_, cloud_occ_msg);
+        occupied_voxel_pub_->publish(cloud_occ_msg);
+    }
+
+    if (viz_free_)
+    {
+        map_manager_.getOccupiedVoxels(free_voxels_);
+        sensor_msgs::msg::PointCloud2 cloud_free_msg;
+        pcl::toROSMsg(free_voxels_, cloud_free_msg);
+        free_voxel_pub_->publish(cloud_free_msg);
+    }
+
+
     
     const double end_time = this->get_clock()->now().seconds();
     double elapsed_s = end_time - start_time;
