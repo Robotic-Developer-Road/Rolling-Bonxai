@@ -186,6 +186,21 @@ namespace RM
          * @return size_t
          */
         size_t chunkTypeToIndex(ChunkType type);
+
+        /**
+         * @brief Get the chunk type given an index
+         * @param size_t index
+         * @return ChunkType enum
+         */
+        ChunkType indexToChunkType(size_t index);
+
+        /**
+         * @brief Get the chunk coordinate given a chunk type and a source chunk coordinate
+         * @param ChunkType type
+         * @param Bonxai::CoordT& source
+         * @return Bonxai::CoordT
+         */
+        Bonxai::CoordT getChunkCoord(ChunkManager::ChunkType ctype,const Bonxai::CoordT& source);
         
         /**
          * @brief Get the chunk key

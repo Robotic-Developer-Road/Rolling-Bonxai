@@ -452,6 +452,81 @@ namespace RM
         return static_cast<size_t>(type);
     }
 
+    ChunkManager::ChunkType ChunkManager::indexToChunkType(size_t index)
+    {
+        
+        if (index == 0) {return ChunkManager::ChunkType::SOURCE;} 
+        if (index == 1) {return ChunkManager::ChunkType::FACE_F;}       
+        if (index == 2) {return ChunkManager::ChunkType::FACE_B;}       
+        if (index == 3) {return ChunkManager::ChunkType::FACE_L;}      
+        if (index == 4) {return ChunkManager::ChunkType::FACE_R;}        
+        if (index == 5) {return ChunkManager::ChunkType::FACE_T;}        
+        if (index == 6) {return ChunkManager::ChunkType::FACE_D;}       
+        if (index == 7 ) {return ChunkManager::ChunkType::EDGE_B_R    ;}     
+        if (index == 8 ) {return ChunkManager::ChunkType::EDGE_B_L    ;}     
+        if (index == 9 ) {return ChunkManager::ChunkType::EDGE_F_R    ;}      
+        if (index == 10) {return ChunkManager::ChunkType::EDGE_F_L    ;}    
+        if (index == 11) {return ChunkManager::ChunkType::EDGE_B_D    ;}  
+        if (index == 12) {return ChunkManager::ChunkType::EDGE_B_T    ;}    
+        if (index == 13) {return ChunkManager::ChunkType::EDGE_F_D    ;}    
+        if (index == 14) {return ChunkManager::ChunkType::EDGE_F_T    ;}    
+        if (index == 15) {return ChunkManager::ChunkType::EDGE_R_D    ;}   
+        if (index == 16) {return ChunkManager::ChunkType::EDGE_R_T    ;}    
+        if (index == 17) {return ChunkManager::ChunkType::EDGE_L_D    ;}   
+        if (index == 18) {return ChunkManager::ChunkType::EDGE_L_T    ;}    
+        if (index == 19) {return ChunkManager::ChunkType::CORNER_B_R_D;} 
+        if (index == 20) {return ChunkManager::ChunkType::CORNER_B_R_T;} 
+        if (index == 21) {return ChunkManager::ChunkType::CORNER_B_L_D;} 
+        if (index == 22) {return ChunkManager::ChunkType::CORNER_B_L_T;} 
+        if (index == 23) {return ChunkManager::ChunkType::CORNER_F_R_D;} 
+        if (index == 24) {return ChunkManager::ChunkType::CORNER_F_R_T;} 
+        if (index == 25) {return ChunkManager::ChunkType::CORNER_F_L_D;} 
+        if (index == 26) {return ChunkManager::ChunkType::CORNER_F_L_T;} 
+        
+        return ChunkManager::ChunkType::INVALID;
+    }
+
+    Bonxai::CoordT ChunkManager::getChunkCoord(ChunkManager::ChunkType ctype,const Bonxai::CoordT& source)
+    {
+        using C = Bonxai::CoordT;
+
+        if (ctype == ChunkType::SOURCE){return source + C{0,0,0};}    
+
+        // Faces
+        if (ctype == ChunkType::FACE_F) {return source + C{1, 0, 0} ;}    
+        if (ctype == ChunkType::FACE_B) {return source + C{-1, 0, 0};}  
+        if (ctype == ChunkType::FACE_L) {return source + C{0, 1, 0} ;}    
+        if (ctype == ChunkType::FACE_R) {return source + C{0, -1, 0};}  
+        if (ctype == ChunkType::FACE_T) {return source + C{0, 0, 1} ;} 
+        if (ctype == ChunkType::FACE_D) {return source + C{0, 0, -1};} 
+
+        // Edges
+        if (ctype == ChunkType::EDGE_B_R) {return source + C{-1, -1, 0} ;} 
+        if (ctype == ChunkType::EDGE_B_L) {return source + C{-1,  1, 0} ;} 
+        if (ctype == ChunkType::EDGE_F_R) {return source + C{ 1, -1, 0} ;} 
+        if (ctype == ChunkType::EDGE_F_L) {return source + C{ 1,  1, 0} ;} 
+        if (ctype == ChunkType::EDGE_B_D) {return source + C{-1,  0, -1};} 
+        if (ctype == ChunkType::EDGE_B_T) {return source + C{-1,  0,  1};} 
+        if (ctype == ChunkType::EDGE_F_D) {return source + C{ 1,  0, -1};} 
+        if (ctype == ChunkType::EDGE_F_T) {return source + C{ 1,  0,  1};} 
+        if (ctype == ChunkType::EDGE_R_D) {return source + C{ 0, -1, -1};} 
+        if (ctype == ChunkType::EDGE_R_T) {return source + C{ 0, -1,  1};} 
+        if (ctype == ChunkType::EDGE_L_D) {return source + C{ 0,  1, -1};} 
+        if (ctype == ChunkType::EDGE_L_T) {return source + C{ 0,  1,  1};} 
+
+        // Corners
+        if(ctype == ChunkType::CORNER_B_R_D){return source + C{-1, -1, -1};}
+        if(ctype == ChunkType::CORNER_B_R_T){return source + C{-1, -1,  1};}
+        if(ctype == ChunkType::CORNER_B_L_D){return source + C{-1,  1, -1};}
+        if(ctype == ChunkType::CORNER_B_L_T){return source + C{-1,  1,  1};}
+        if(ctype == ChunkType::CORNER_F_R_D){return source + C{ 1, -1, -1};}
+        if(ctype == ChunkType::CORNER_F_R_T){return source + C{ 1, -1,  1};}
+        if(ctype == ChunkType::CORNER_F_L_D){return source + C{ 1,  1, -1};}
+        if(ctype == ChunkType::CORNER_F_L_T){return source + C{ 1,  1,  1};}
+
+        throw(std::runtime_error("Invalid chunk type"));
+    }
+
     ChunkManager::ChunkKey ChunkManager::chunkCoordToChunkKey(const Bonxai::CoordT& cc)
     {
         std::string key = std::to_string(cc.x) + "_" + std::to_string(cc.y) + "_" + std::to_string(cc.z);
