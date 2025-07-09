@@ -227,16 +227,59 @@ namespace Bonxai
         void getFreeVoxels(std::vector<PointT>& points) const;
 
         /**
-         * @brief Add points that are hit
+         * @brief Add points that are hit. Uses generated accessor
          * @param Vector3D& point in map frame
+         * @param Accessor a ref to an accessor
          */
         void addHitPoint(const Vector3D& point,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor);
+        
+        /**
+         * @brief Add points that are hit. Uses generated accessor
+         * @param BonxaiCoordT voxel coord in map frame
+         * @param Accessor a ref to an accessor
+         */
+        void addHitPoint(const Bonxai::CoordT& coord,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor);
+
+        /**
+         * @brief Add points that are hit. Uses inter accessor
+         * @param Vector3D& point in map frame
+         */
+        void addHitPoint(const Vector3D& point);
+        
+        /**
+         * @brief Add points that are hit. Uses inter accessor
+         * @param BonxaiCoordT voxel coord in map frame
+         */
+        void addHitPoint(const Bonxai::CoordT& coord);
+
+        /**
+         * @brief Add points that are missed
+         * @param Vector3D& point in map frame
+         * @param Accessor a ref to an accessor
+         */
+        void addMissPoint(const Vector3D& point,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor);
+
+        /**
+         * @brief Add points that are missed
+         * @param Vector3D& point in map frame
+         * @param Accessor a ref to an accessor
+         */
+        void addMissPoint(const Bonxai::CoordT& coord,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor);
 
         /**
          * @brief Add points that are missed
          * @param Vector3D& point in map frame
          */
-        void addMissPoint(const Vector3D& point,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor);
+        void addMissPoint(const Vector3D& point);
+
+        /**
+         * @brief Add points that are missed
+         * @param Vector3D& point in map frame
+         */
+        void addMissPoint(const Bonxai::CoordT& point);
+
+
+
 
         /**
          * @brief The main update function exposed to the user to update PointCloud

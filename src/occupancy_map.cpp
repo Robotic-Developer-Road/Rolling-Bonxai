@@ -260,10 +260,96 @@ namespace Bonxai
         }
     }
 
+    void OccupancyMap::addHitPoint(const CoordT& coord,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor)
+    {
+        MapUtils::CellOcc* cell = accessor.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::min(cell->probability_log + options_.prob_hit_log,
+                                            options_.clamp_max_log);
+            
+            cell->update_id = update_count_;
+            hit_coords_.push_back(coord);
+        }
+    }
+
+    void OccupancyMap::addHitPoint(const Vector3D& point)
+    {
+        const auto coord = grid_.posToCoord(point);
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::min(cell->probability_log + options_.prob_hit_log,
+                                            options_.clamp_max_log);
+            
+            cell->update_id = update_count_;
+            hit_coords_.push_back(coord);
+        }
+    }
+
+    void OccupancyMap::addHitPoint(const CoordT& coord)
+    {
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::min(cell->probability_log + options_.prob_hit_log,
+                                            options_.clamp_max_log);
+            
+            cell->update_id = update_count_;
+            hit_coords_.push_back(coord);
+        }
+    }
+
     void OccupancyMap::addMissPoint(const Vector3D& point,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor)
     {
         const auto coord = grid_.posToCoord(point);
         MapUtils::CellOcc* cell = accessor.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::max(cell->probability_log + options_.prob_miss_log,
+                                            options_.clamp_min_log);
+        }
+
+        cell->update_id = update_count_;
+        miss_coords_.push_back(coord);
+    }
+
+    void OccupancyMap::addMissPoint(const CoordT& coord,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor)
+    {
+        MapUtils::CellOcc* cell = accessor.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::max(cell->probability_log + options_.prob_miss_log,
+                                            options_.clamp_min_log);
+        }
+
+        cell->update_id = update_count_;
+        miss_coords_.push_back(coord);
+    }
+
+    void OccupancyMap::addMissPoint(const Vector3D& point)
+    {
+        const auto coord = grid_.posToCoord(point);
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::max(cell->probability_log + options_.prob_miss_log,
+                                            options_.clamp_min_log);
+        }
+
+        cell->update_id = update_count_;
+        miss_coords_.push_back(coord);
+    }
+
+    void OccupancyMap::addMissPoint(const CoordT& coord)
+    {
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
 
         if (cell->update_id != update_count_)
         {
