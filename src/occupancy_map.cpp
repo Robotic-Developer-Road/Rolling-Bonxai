@@ -13,51 +13,6 @@ namespace Bonxai
         return (1.0 - 1.0 / (1.0 + std::exp(logods)));
     }
 
-    template <class Functor>
-    inline void MapUtils::RayIterator(const CoordT& key_origin, const CoordT& key_end, const Functor& func) 
-    {
-        if (key_origin == key_end) {return;}
-        if (!func(key_origin)) {return;}
-
-        CoordT error = {0, 0, 0};
-        CoordT coord = key_origin;
-        CoordT delta = (key_end - coord);
-        const CoordT step = {delta.x < 0 ? -1 : 1, delta.y < 0 ? -1 : 1, delta.z < 0 ? -1 : 1};
-
-        delta = {
-            delta.x < 0 ? -delta.x : delta.x, delta.y < 0 ? -delta.y : delta.y,
-            delta.z < 0 ? -delta.z : delta.z};
-
-        const int max = std::max(std::max(delta.x, delta.y), delta.z);
-
-        // maximum change of any coordinate
-        for (int i = 0; i < max - 1; ++i) 
-        {
-            // update errors
-            error = error + delta;
-            // manual loop unrolling
-            if ((error.x << 1) >= max) 
-            {
-                coord.x += step.x;
-                error.x -= max;
-            }
-
-            if ((error.y << 1) >= max) 
-            {
-                coord.y += step.y;
-                error.y -= max;
-            }
-
-            if ((error.z << 1) >= max) 
-            {
-                coord.z += step.z;
-                error.z -= max;
-            }
-
-            if (!func(coord)) {return;}
-        }
-    }
-
     inline void MapUtils::ComputeRay(const CoordT& key_origin, const CoordT& key_end, std::vector<CoordT>& ray)
     {
         //Clear the ray vector
@@ -79,25 +34,34 @@ namespace Bonxai
 
     OccupancyMap::OccupancyMap(double resolution)
     :
-    grid_(resolution)
-    {
-        accessor_bound_= false;
-    }
+    grid_(resolution),
+    accessor_(grid_.createAccessor()),
+    accessor_bound_{true}
+    {}
 
     OccupancyMap::OccupancyMap(double resolution , MapUtils::OccupancyOptions& options)
     :
     grid_(resolution),
-    options_(options)
-    {
-        accessor_bound_= false;
-    }
+    options_(options),
+    accessor_(grid_.createAccessor()),
+    accessor_bound_{true}
+    {}
+
+    OccupancyMap::OccupancyMap(MapUtils::OccupancyOptions& options, VoxelGrid<MapUtils::CellOcc>&& grid)
+    :
+    grid_(std::move(grid)),
+    options_(options),
+    accessor_(grid_.createAccessor()),
+    accessor_bound_{true}
+    {}
+    
 
     OccupancyMap::OccupancyMap(OccupancyMap&& other) noexcept
     : 
-    grid_(std::move(other.grid_))
-    {
-        accessor_bound_= false;
-    }
+    grid_(std::move(other.grid_)),
+    accessor_(grid_.createAccessor()),
+    accessor_bound_(true)
+    {}
 
     OccupancyMap& OccupancyMap::operator=(OccupancyMap&& other) noexcept
     {
@@ -250,6 +214,49 @@ namespace Bonxai
         }
     }
 
+    void OccupancyMap::addHitPoint(const CoordT& coord,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor)
+    {
+        MapUtils::CellOcc* cell = accessor.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::min(cell->probability_log + options_.prob_hit_log,
+                                            options_.clamp_max_log);
+            
+            cell->update_id = update_count_;
+            hit_coords_.push_back(coord);
+        }
+    }
+
+    void OccupancyMap::addHitPoint(const Vector3D& point)
+    {
+        const auto coord = grid_.posToCoord(point);
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::min(cell->probability_log + options_.prob_hit_log,
+                                            options_.clamp_max_log);
+            
+            cell->update_id = update_count_;
+            hit_coords_.push_back(coord);
+        }
+    }
+
+    void OccupancyMap::addHitPoint(const CoordT& coord)
+    {
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::min(cell->probability_log + options_.prob_hit_log,
+                                            options_.clamp_max_log);
+            
+            cell->update_id = update_count_;
+            hit_coords_.push_back(coord);
+        }
+    }
+
     void OccupancyMap::addMissPoint(const Vector3D& point,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor)
     {
         const auto coord = grid_.posToCoord(point);
@@ -265,33 +272,55 @@ namespace Bonxai
         miss_coords_.push_back(coord);
     }
 
-    template <typename PointT, typename Allocator>
-    void OccupancyMap::insertPointCloud(const std::vector<PointT, Allocator>& points, 
-                              const PointT& origin, double max_range)
+    void OccupancyMap::addMissPoint(const CoordT& coord,Bonxai::VoxelGrid<MapUtils::CellOcc>::Accessor& accessor)
     {
-        const auto from_point = ConvertPoint<Vector3D>(origin);
-        const double max_range_sq = max_range * max_range;
-        auto accessor = grid_.createAccessor();
-        for (const auto& point : points)
-        {
-            const auto to_point = ConvertPoint<Vector3D>(point);
-            //For every point, compute the vector from the origin to that point
-            Vector3D vector_from_to(to_point - from_point);
-            const double squared_norm = vector_from_to.squaredNorm();
-            Vector3D vector_from_to_unit = vector_from_to / std::sqrt(squared_norm);
+        MapUtils::CellOcc* cell = accessor.value(coord,true);
 
-            if (squared_norm >= max_range_sq)
-            {
-                //Bring the to point to along the radial line r = max_range around from point
-                const Vector3D new_to_point = from_point + (vector_from_to_unit * max_range);
-                addMissPoint(new_to_point,accessor);
-            }
-            else
-            {
-                addHitPoint(to_point,accessor);
-            }
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::max(cell->probability_log + options_.prob_miss_log,
+                                            options_.clamp_min_log);
         }
-        updateFreeCells(from_point);
+
+        cell->update_id = update_count_;
+        miss_coords_.push_back(coord);
+    }
+
+    void OccupancyMap::addMissPoint(const Vector3D& point)
+    {
+        const auto coord = grid_.posToCoord(point);
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::max(cell->probability_log + options_.prob_miss_log,
+                                            options_.clamp_min_log);
+        }
+
+        cell->update_id = update_count_;
+        miss_coords_.push_back(coord);
+    }
+
+    void OccupancyMap::addMissPoint(const CoordT& coord)
+    {
+        MapUtils::CellOcc* cell = accessor_.value(coord,true);
+
+        if (cell->update_id != update_count_)
+        {
+            cell->probability_log = std::max(cell->probability_log + options_.prob_miss_log,
+                                            options_.clamp_min_log);
+        }
+
+        cell->update_id = update_count_;
+        miss_coords_.push_back(coord);
+    }
+
+    void OccupancyMap::incrementUpdateCount()
+    {
+        if (++this->update_count_ == 4)
+        {
+            this->update_count_ = 1;
+        }
     }
 
     void OccupancyMap::updateFreeCells(const Vector3D& origin)

@@ -78,7 +78,8 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     //Publisher
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr voxel_center_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr free_voxel_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr occupied_voxel_pub_;
 
     //TODO: Visualization Publisher but can do later
 
@@ -98,6 +99,10 @@ private:
     int num_callback_hits_ {0};
     double elapsed_total_time_s_ {0};
     double elapsed_avg_time_s_ {0};
+
+    //Data Structure to points
+    PCLPointCloud occupied_voxels_;
+    PCLPointCloud free_voxels_;
 };
 }
 #endif //ROLLING_MAP_H

@@ -68,12 +68,34 @@ namespace RM
         ChunkManager& operator=(const ChunkManager&) = default;
         ChunkManager& operator=(ChunkManager&&) = default;
 
+        /**
+         * @brief Initialize the first set of chunks
+         * @param Bonxai::CoordT &source_chunk
+         * @param std::vector<Bonxai::CoordT> &nb_chunks
+         */
         void initFirstChunks(Bonxai::CoordT &source_chunk,
-                             std::vector<Bonxai::CoordT> &chunks_in_play);
-        
-        void updateChunks(PCLPointCloud &points,PCLPoint &origin,
-                          std::vector<Bonxai::CoordT> &chunks_in_play);
+                             std::vector<Bonxai::CoordT> &nb_chunks);
 
+        /**
+         * @brief Update the chunks
+         * @param PCLPointCloud &points
+         * @param PCLPoint &origin
+         * @param std::vector<Bonxai::CoordT> &nb_chunks
+         */
+        void updateChunks(PCLPointCloud &points,PCLPoint &origin,
+                          std::vector<Bonxai::CoordT> &nb_chunks);
+        
+        /**
+         * @brief Get all the occupied voxels
+         * @param std::vector<PCLPoint>& points
+         */
+        void getAllOccupiedVoxels(PCLPointCloud& points);
+
+        /**
+         * @brief Get all the free voxels
+         * @param std::vector<PCLPoint>& points
+         */
+        void getAllFreeVoxels(PCLPointCloud& points);
 
     private:
         enum class ChunkType : size_t
@@ -119,29 +141,58 @@ namespace RM
          * @brief Set the center coord
          * @param Bonxai::CoordT& source
          */
-        void setCenterCoord(Bonxai::CoordT& source);
-
-        /**
-         * @brief Update chunks in a best effort manner when the centers are not the same
-         */
-        void bestEffortChunkUpdate(PCLPointCloud &points,PCLPoint& origin,
-                                   Bonxai::CoordT& source_chunk,
-                                   std::vector<Bonxai::CoordT> &chunks_in_play);
-        
+        void setSourceCoord(Bonxai::CoordT& source);
+  
         /**
          * @brief Update chunks in a full manner when the centers are the same
          * @param PCLPointCloud& points
          * @param Bonxai::CoordT& source_chunk
          * @param std::vector<Bonxai::CoordT>& chunks_in_play
          */
-        void fullChunkUpdate(PCLPointCloud &points,PCLPoint& origin,
-                            Bonxai::CoordT& source_chunk,
-                            std::vector<Bonxai::CoordT> &chunks_in_play);
+        void updateAllOccupancy(PCLPointCloud &points,PCLPoint& origin,
+                            Bonxai::CoordT& source_chunk);
+
+        /**
+         * @brief Update the end points of the laser scan as hit
+         * @param hit_voxel in map frame
+         * @param source chunk
+         */
+        void updateAllHitPoints(Bonxai::CoordT& hit_voxel,Bonxai::CoordT& source_chunk);
+
+        /**
+         * @brief Update the end points of the laser scan as miss
+         * @param hit_voxel in map frame
+         * @param source chunk
+         */
+        void updateAllMissPoints(Bonxai::CoordT& miss_voxel,Bonxai::CoordT& source_chunk);
+
+        /**
+         * @brief Update the end points of the laser scan as miss
+         * @param hit_voxel in map frame
+         * @param source chunk
+         * @param bool is_hit, true if the update is for a hit point, false if miss point
+         */
+        void updateAllHitOrMissPoints(Bonxai::CoordT& target_voxel,Bonxai::CoordT& source_chunk,bool is_hit);
+
+        /**
+         * @brief Raycast from start to end and update all the free cells
+         * @param std::vector<CoordT> end_point_voxels
+         * @param CoordT sensor voxel
+         */
+        void updateAllFreeCells(std::vector<Bonxai::CoordT> &end_voxels, Bonxai::CoordT& source_chunk,Bonxai::CoordT &sensor_voxel);
         
         /**
-         * @brief Update the cache of chunks
+         * @brief Increment the update count of all the chunks that were touched
+         * 
          */
-        void updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &chunks_in_play);
+        void incrementUpdateCount();
+
+        /**
+         * @brief Update the cache of chunks
+         * @param Bonxai::CoordT source_chunk
+         * @param std::vector<Bonxai::CoordT> nb_chunks
+         */
+        void updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &nb_chunks);
 
         /**
          * @brief Get the chunk type
@@ -157,6 +208,21 @@ namespace RM
          * @return size_t
          */
         size_t chunkTypeToIndex(ChunkType type);
+
+        /**
+         * @brief Get the chunk type given an index
+         * @param size_t index
+         * @return ChunkType enum
+         */
+        ChunkType indexToChunkType(size_t index);
+
+        /**
+         * @brief Get the chunk coordinate given a chunk type and a source chunk coordinate
+         * @param ChunkType type
+         * @param Bonxai::CoordT& source
+         * @return Bonxai::CoordT
+         */
+        Bonxai::CoordT getChunkCoord(ChunkManager::ChunkType ctype,const Bonxai::CoordT& source);
         
         /**
          * @brief Get the chunk key
@@ -209,6 +275,13 @@ namespace RM
          * @param size_t idx
          */
         void markUnset(size_t idx);
+        
+        /**
+         * @brief Retrieve the state of the chunk
+         * @param idx of the chunk
+         * @return ChunkState of the chunk
+         */
+        ChunkState& getChunkState(size_t idx);
 
         /**
          * @brief Push a chunk key to the read queue
@@ -272,8 +345,10 @@ namespace RM
         std::array<MapPtr,27> chunks_;
         //27 sized fixed array of booleans indicating if the chunk is clean
         std::array<std::pair<ChunkKey,ChunkState>,27> chunk_states_;
+        //Boolean values to track if a chunk was touched atleast once during a particular update. It is reset every update
+        std::array<bool,27> touched_once_;
         //The center coordinate
-        Bonxai::CoordT center_coord_;
+        Bonxai::CoordT current_source_coord_;
         //Flag to check if the first map has been initted
         bool is_init_ {false};
 
