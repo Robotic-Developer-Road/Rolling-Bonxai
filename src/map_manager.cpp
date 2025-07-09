@@ -23,43 +23,38 @@ namespace RM
     void MapManager::updateMap(PCLPointCloud& points,PCLPoint& origin)
     {
         //The voxel coordinate where the origin is found in
-        auto voxel_id_sensor = this->mapPointToVoxelCoord(origin);
+        auto voxel_coord_sensor = this->mapPointToVoxelCoord(origin);
 
         //The chunk coordinate where the origin voxel is found in
-        auto chunk_coord_sensor = this->voxelCoordToChunkCoord(voxel_id_sensor);
+        auto chunk_coord_sensor = this->voxelCoordToChunkCoord(voxel_coord_sensor);
 
         //How many neibors and how many chunks are in play
-        constexpr size_t neibors = 26;
-        constexpr size_t num_chunks_in_play = neibors + 1; //neibor chunks and me
+        constexpr size_t num_neibors = 26;
 
         //Create a vector containing all the chunks in play. Should be a maximum of 27
-        std::vector<Bonxai::CoordT> chunks_in_play;
+        std::vector<Bonxai::CoordT> nb_chunks;
 
         //Reserve memory for faster pushbacks
-        chunks_in_play.reserve(num_chunks_in_play);
-
-        //Push in the chunk containing the origin
-        chunks_in_play.push_back(chunk_coord_sensor);
+        nb_chunks.reserve(num_neibors);
 
         //Get the neibor coordinates
         auto face_neibors = getFaceNeibors(chunk_coord_sensor);
         auto edge_neibors = getEdgeNeibors(chunk_coord_sensor);
         auto corner_neibors = getCornerNeibors(chunk_coord_sensor);
 
-        for (const auto &face : face_neibors) {chunks_in_play.push_back(face);}
-        for (const auto &edge : edge_neibors) {chunks_in_play.push_back(edge);}
-        for (const auto &corner : corner_neibors) {chunks_in_play.push_back(corner);}
+        for (const auto &face : face_neibors)     {nb_chunks.push_back(face);}
+        for (const auto &edge : edge_neibors)     {nb_chunks.push_back(edge);}
+        for (const auto &corner : corner_neibors) {nb_chunks.push_back(corner);}
         
-
         if (first_update_)
         {
-            chunk_manager_->initFirstChunks(chunk_coord_sensor,chunks_in_play);
+            chunk_manager_->initFirstChunks(chunk_coord_sensor,nb_chunks);
             first_update_ = false;
         }
 
         else
         {
-            chunk_manager_->updateChunks(points,origin,chunks_in_play);
+            chunk_manager_->updateChunks(points,origin,nb_chunks);
         }
     }
 
@@ -71,7 +66,7 @@ namespace RM
             {coord.x - 1, coord.y, coord.z}, //back
             {coord.x, coord.y + 1, coord.z}, //left
             {coord.x, coord.y - 1, coord.z}, //right
-            {coord.x, coord.y, coord.z + 1}, //up
+            {coord.x, coord.y, coord.z + 1}, //top
             {coord.x, coord.y, coord.z - 1}  //down
         }};
     }
@@ -88,15 +83,15 @@ namespace RM
 
             // xz-plane edges
             {coord.x - 1, coord.y, coord.z - 1}, //back-down
-            {coord.x - 1, coord.y, coord.z + 1}, //back-up
+            {coord.x - 1, coord.y, coord.z + 1}, //back-top
             {coord.x + 1, coord.y, coord.z - 1}, //front-down
-            {coord.x + 1, coord.y, coord.z + 1}, //front-up
+            {coord.x + 1, coord.y, coord.z + 1}, //front-top
 
             // yz-plane edges
             {coord.x, coord.y - 1, coord.z - 1}, //right-down
-            {coord.x, coord.y - 1, coord.z + 1}, //right-up
+            {coord.x, coord.y - 1, coord.z + 1}, //right-top
             {coord.x, coord.y + 1, coord.z - 1}, //left-down
-            {coord.x, coord.y + 1, coord.z + 1}  //left-up
+            {coord.x, coord.y + 1, coord.z + 1}  //left-top
         }};
     }
 
@@ -105,13 +100,13 @@ namespace RM
         //Follow the right-handle rule system X(front),Y(Left), Z(Up)
         return {{
             {coord.x - 1, coord.y - 1, coord.z - 1}, //back  - right  -  down
-            {coord.x - 1, coord.y - 1, coord.z + 1}, //back  - right  -  up
+            {coord.x - 1, coord.y - 1, coord.z + 1}, //back  - right  -  top
             {coord.x - 1, coord.y + 1, coord.z - 1}, //back  - left   -  down
-            {coord.x - 1, coord.y + 1, coord.z + 1}, //back  - left  -  up
+            {coord.x - 1, coord.y + 1, coord.z + 1}, //back  - left  -   top
             {coord.x + 1, coord.y - 1, coord.z - 1}, //front - right  -  down
-            {coord.x + 1, coord.y - 1, coord.z + 1}, //front - right  -  up
+            {coord.x + 1, coord.y - 1, coord.z + 1}, //front - right  -  top
             {coord.x + 1, coord.y + 1, coord.z - 1}, //front - left   -  down
-            {coord.x + 1, coord.y + 1, coord.z + 1}  //front - left   -  up
+            {coord.x + 1, coord.y + 1, coord.z + 1}  //front - left   -  top
         }};
     }
 

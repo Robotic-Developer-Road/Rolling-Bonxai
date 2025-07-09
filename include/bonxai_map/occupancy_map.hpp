@@ -31,7 +31,49 @@ namespace Bonxai
          * @param Functor func 
          */
         template <class Functor>
-        void RayIterator(const CoordT& key_origin, const CoordT& key_end, const Functor& func);
+        void RayIterator(const CoordT& key_origin, const CoordT& key_end, const Functor& func)
+        {
+            if (key_origin == key_end) {return;}
+            if (!func(key_origin)) {return;}
+
+            CoordT error = {0, 0, 0};
+            CoordT coord = key_origin;
+            CoordT delta = (key_end - coord);
+            const CoordT step = {delta.x < 0 ? -1 : 1, delta.y < 0 ? -1 : 1, delta.z < 0 ? -1 : 1};
+
+            delta = {
+                delta.x < 0 ? -delta.x : delta.x, delta.y < 0 ? -delta.y : delta.y,
+                delta.z < 0 ? -delta.z : delta.z};
+
+            const int max = std::max(std::max(delta.x, delta.y), delta.z);
+
+            // maximum change of any coordinate
+            for (int i = 0; i < max - 1; ++i) 
+            {
+                // update errors
+                error = error + delta;
+                // manual loop unrolling
+                if ((error.x << 1) >= max) 
+                {
+                    coord.x += step.x;
+                    error.x -= max;
+                }
+
+                if ((error.y << 1) >= max) 
+                {
+                    coord.y += step.y;
+                    error.y -= max;
+                }
+
+                if ((error.z << 1) >= max) 
+                {
+                    coord.z += step.z;
+                    error.z -= max;
+                }
+
+                if (!func(coord)) {return;}
+            }
+        }
 
         /**
          * @brief Compute the ray between two keys
@@ -281,10 +323,7 @@ namespace Bonxai
         /**
          * @brief Increment the update count by 1 and loop back to 1 after 4
          */
-        void incrementUpdateCount()
-        {
-            this->upda
-        }
+        void incrementUpdateCount();
 
         /**
          * @brief The main update function exposed to the user to update PointCloud
@@ -294,7 +333,32 @@ namespace Bonxai
          */
         template <typename PointT, typename Allocator>
         void insertPointCloud(const std::vector<PointT, Allocator>& points, 
-                              const PointT& origin, double max_range);
+                              const PointT& origin, double max_range)
+        {
+            const auto from_point = ConvertPoint<Vector3D>(origin);
+            const double max_range_sq = max_range * max_range;
+            auto accessor = grid_.createAccessor();
+            for (const auto& point : points)
+            {
+                const auto to_point = ConvertPoint<Vector3D>(point);
+                //For every point, compute the vector from the origin to that point
+                Vector3D vector_from_to(to_point - from_point);
+                const double squared_norm = vector_from_to.squaredNorm();
+                Vector3D vector_from_to_unit = vector_from_to / std::sqrt(squared_norm);
+
+                if (squared_norm >= max_range_sq)
+                {
+                    //Bring the to point to along the radial line r = max_range around from point
+                    const Vector3D new_to_point = from_point + (vector_from_to_unit * max_range);
+                    addMissPoint(new_to_point,accessor);
+                }
+                else
+                {
+                    addHitPoint(to_point,accessor);
+                }
+            }
+            updateFreeCells(from_point);
+        }
         
 
     private:

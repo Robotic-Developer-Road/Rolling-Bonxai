@@ -69,10 +69,10 @@ namespace RM
         ChunkManager& operator=(ChunkManager&&) = default;
 
         void initFirstChunks(Bonxai::CoordT &source_chunk,
-                             std::vector<Bonxai::CoordT> &chunks_in_play);
+                             std::vector<Bonxai::CoordT> &nb_chunks);
         
         void updateChunks(PCLPointCloud &points,PCLPoint &origin,
-                          std::vector<Bonxai::CoordT> &chunks_in_play);
+                          std::vector<Bonxai::CoordT> &nb_chunks);
 
 
     private:
@@ -167,8 +167,10 @@ namespace RM
 
         /**
          * @brief Update the cache of chunks
+         * @param Bonxai::CoordT source_chunk
+         * @param std::vector<Bonxai::CoordT> nb_chunks
          */
-        void updateCache();
+        void updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &nb_chunks);
 
         /**
          * @brief Get the chunk type

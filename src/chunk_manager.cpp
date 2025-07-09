@@ -62,11 +62,19 @@ namespace RM
     }
 
     void ChunkManager::initFirstChunks(Bonxai::CoordT &source_chunk,
-                                       std::vector<Bonxai::CoordT> &chunks_in_play)
+                                       std::vector<Bonxai::CoordT> &nb_chunks)
     {
         setSourceCoord(source_chunk);
+        //First one is always the source. Get the key
+        ChunkKey source_key = chunkCoordToChunkKey(source_chunk);
+        //Allocate the map
+        MapPtr source_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
+        //Add the new map to the chunks
+        chunks_[0] = source_map;
+        //Update the chunk states
+        chunk_states_[0] = std::make_pair(source_key,ChunkState::CLEAN);
 
-        for (auto &c : chunks_in_play)
+        for (auto &c : nb_chunks)
         {
             // Build a fresh new map
             MapPtr new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
@@ -88,7 +96,7 @@ namespace RM
     }
 
     void ChunkManager::updateChunks(PCLPointCloud &points,PCLPoint& origin,
-                          std::vector<Bonxai::CoordT> &chunks_in_play)
+                          std::vector<Bonxai::CoordT> &nb_chunks)
     {
         auto source_voxel = mapPointToVoxelCoord(origin);
         auto source_chunk = voxelCoordToChunkCoord(source_voxel);
@@ -108,10 +116,8 @@ namespace RM
         {
             //Update the occupancy
             updateAllOccupancy(points,origin,source_chunk);
-            //Update the source chunk
-            setSourceCoord(source_chunk);
             //Update the cache
-            updateCache();
+            updateCache(source_chunk,nb_chunks);
         }
 
         else
@@ -244,7 +250,7 @@ namespace RM
 
     void ChunkManager::updateAllFreeCells(std::vector<Bonxai::CoordT> &end_voxels, Bonxai::CoordT& source_chunk,Bonxai::CoordT &sensor_voxel)
     {
-        auto clearPointLambda = [this,&source_chunk](const Bonxai::CoordT &coord)
+        auto clearPointLambda = [this,&source_chunk](const Bonxai::CoordT& coord) 
         {
             //This gonna be the exact same as updateMissPoint
             Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(coord);
@@ -271,6 +277,7 @@ namespace RM
                 //This chunk was touched during the update
                 this->touched_once_[target_index] = true;
             }
+            return true;
         }; // clearPointLambda
         
         //Iterate through all the end voxels and raycast update
@@ -293,9 +300,107 @@ namespace RM
         touched_once_.fill(false);
     }
 
-    void ChunkManager::updateCache()
-    {
-        //todo
+    void ChunkManager::updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &nb_chunks)
+    {   
+        /*
+        There are 3 map types when it comes to updates: Persist,Evict,Load
+        Persist Maps: Maps that are currently in the cache that are still neibors of the new source chunk.
+        Evict Maps: Maps that are currently in the cache that are no longer neibors of the new source chunk.
+        Load Maps: Maps that need to be loaded because they are not in the current cache but are neibors of the new source chunk
+
+        There are 2 modes of eviction.
+        1. Just kill the chunk if its clean (has not been updated)
+        2. Save the chunk to disc if its dirty (has been updated)
+
+        There are 2 modes of load.
+        1. Create a new map if the map doesnt exist in the disc
+        2. Deserialize and load the map from disc
+
+        Eviction Requires a ChunkKey and MapPtr
+        Loading just requires a ChunKey
+
+        Workflow: Take out chunks that need to be evicted, replacing them will nullptrs
+         */
+
+        //A lambda to zero out a chunk idx
+        auto makeEmptyLambda = [this](size_t i)
+        {
+            this->chunks_[i] = nullptr;
+            chunk_states_[i] = std::make_pair("_",ChunkState::UNSET);
+        }; //makeEmptyLambda
+
+        //Set the new source chunk
+        setSourceCoord(source_chunk);
+
+        std::vector<std::tuple<ChunkKey,ChunkState,MapPtr>> persist_tasks;
+
+        for (size_t i = 0 ; i < chunks_.size() ; ++i)
+        {
+            ChunkKey key = chunk_states_[i].first;
+            ChunkState state = chunk_states_[i].second;
+
+            Bonxai::CoordT coord = chunkKeyToChunkCoord(key);
+
+            //If the coordinate is also the source chunk, we persist
+            if (coord == source_chunk)
+            {
+                auto mptr = chunks_[i];
+                persist_tasks.emplace_back(key,state,mptr);
+                makeEmptyLambda(i);
+                continue;
+            }
+            
+            //A chunk coordinate in the cache is not a neibor of the source chunk, so we must evict
+            if (!is26neibor(source_chunk,coord))
+            {
+                //We need to save it if its dirty
+                if (state == ChunkState::DIRTY)
+                {
+                    //Copy of the mptr
+                    auto mptr = chunks_[i];
+                    //zero out the chunk idx
+                    makeEmptyLambda(i);
+                    //push his chunk into the write queue
+                    wqPush(key,mptr);
+                }
+                else
+                {
+                    //its not dirty so nuke it
+                    makeEmptyLambda(i);
+                }
+
+            }
+            else //if it is a 26 nb, we need to save it
+            {
+                //If a chunk in the cache is a neibor of the new source chunk
+                auto mptr = chunks_[i];
+                persist_tasks.emplace_back(key,state,mptr);
+                makeEmptyLambda(i);
+            }
+        }
+
+        //Put the persists back into the cache
+        for (auto [key,state,mptr] : persist_tasks)
+        {
+            Bonxai::CoordT persist_coord = chunkKeyToChunkCoord(key);
+            ChunkType ctype = getChunkType(source_chunk,persist_coord);
+            size_t idx = chunkTypeToIndex(ctype);
+
+            chunks_[idx] = mptr;
+            chunk_states_[idx] = std::make_pair(key,state);
+        }
+
+        for (size_t i = 0 ; i < chunks_.size() ; i++)
+        {
+            if (!chunks_[i])
+            {
+                auto coord = nb_chunks[i];
+                auto key = chunkCoordToChunkKey(coord);
+                rqPush(key,coord);
+            }
+        }
+        
+        
     }
 
     ChunkManager::ChunkType ChunkManager::getChunkType(const Bonxai::CoordT& source,const Bonxai::CoordT& c)
@@ -426,7 +531,7 @@ namespace RM
         if (idx >= chunk_states_.max_size())
         {
             std::cout << "Invalid Mark Unset ID" << std::endl;
-            return;
+            throw(std::runtime_error("Invalid Mark Unset ID"));
         }
         return chunk_states_.at(idx).second;
     }
