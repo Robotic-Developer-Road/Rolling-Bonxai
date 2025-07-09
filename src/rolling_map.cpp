@@ -216,19 +216,24 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     //Get the visualization stuff
     if (viz_occupied_)
     {
-        
         map_manager_.getOccupiedVoxels(occupied_voxels_);
         sensor_msgs::msg::PointCloud2 cloud_occ_msg;
+        cloud_occ_msg.header.frame_id = frame_params_.map_frame;
+        cloud_occ_msg.header.stamp = now();
         pcl::toROSMsg(occupied_voxels_, cloud_occ_msg);
         occupied_voxel_pub_->publish(cloud_occ_msg);
+        RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"Published Occupied Voxels");
     }
 
     if (viz_free_)
     {
         map_manager_.getOccupiedVoxels(free_voxels_);
         sensor_msgs::msg::PointCloud2 cloud_free_msg;
+        cloud_free_msg.header.frame_id = frame_params_.map_frame;
+        cloud_free_msg.header.stamp = now();
         pcl::toROSMsg(free_voxels_, cloud_free_msg);
         free_voxel_pub_->publish(cloud_free_msg);
+        RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"Published Free Voxels");
     }
 
 
@@ -239,9 +244,9 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     this->num_callback_hits_++;
     this->elapsed_total_time_s_ += elapsed_s;
     this->elapsed_avg_time_s_ = this->elapsed_total_time_s_/num_callback_hits_;
-    RCLCPP_INFO_STREAM(this->get_logger(), "Callback Completion Time: " << elapsed_s           << "s\n"
-                                        << "Total Callback Hits: "      << num_callback_hits_  << "\n"
-                                        << "Average Completion Time: "  << elapsed_avg_time_s_ << "s\n");
+    // RCLCPP_INFO_STREAM(this->get_logger(), "Callback Completion Time: " << elapsed_s           << "s\n"
+    //                                     << "Total Callback Hits: "      << num_callback_hits_  << "\n"
+    //                                     << "Average Completion Time: "  << elapsed_avg_time_s_ << "s\n");
 }
 
 
