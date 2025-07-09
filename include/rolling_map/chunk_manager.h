@@ -168,7 +168,7 @@ namespace RM
         /**
          * @brief Update the cache of chunks
          */
-        void updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &chunks_in_play);
+        void updateCache();
 
         /**
          * @brief Get the chunk type

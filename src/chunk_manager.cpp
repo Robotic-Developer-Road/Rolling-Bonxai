@@ -111,7 +111,7 @@ namespace RM
             //Update the source chunk
             setSourceCoord(source_chunk);
             //Update the cache
-            updateCache(source_chunk,chunks_in_play);
+            updateCache();
         }
 
         else
@@ -293,7 +293,7 @@ namespace RM
         touched_once_.fill(false);
     }
 
-    void ChunkManager::updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &chunks_in_play)
+    void ChunkManager::updateCache()
     {
         //todo
     }
