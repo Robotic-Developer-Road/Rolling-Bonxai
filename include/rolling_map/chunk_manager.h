@@ -120,24 +120,51 @@ namespace RM
          * @param Bonxai::CoordT& source
          */
         void setSourceCoord(Bonxai::CoordT& source);
-
-        /**
-         * @brief Update chunks in a best effort manner when the centers are not the same
-         */
-        void bestEffortChunkUpdate(PCLPointCloud &points,PCLPoint& origin,
-                                   Bonxai::CoordT& source_chunk,
-                                   std::vector<Bonxai::CoordT> &chunks_in_play);
-        
+  
         /**
          * @brief Update chunks in a full manner when the centers are the same
          * @param PCLPointCloud& points
          * @param Bonxai::CoordT& source_chunk
          * @param std::vector<Bonxai::CoordT>& chunks_in_play
          */
-        void fullChunkUpdate(PCLPointCloud &points,PCLPoint& origin,
-                            Bonxai::CoordT& source_chunk,
-                            std::vector<Bonxai::CoordT> &chunks_in_play);
+        void updateAllOccupancy(PCLPointCloud &points,PCLPoint& origin,
+                            Bonxai::CoordT& source_chunk);
+
+        /**
+         * @brief Update the end points of the laser scan as hit
+         * @param hit_voxel in map frame
+         * @param source chunk
+         */
+        void updateAllHitPoints(Bonxai::CoordT& hit_voxel,Bonxai::CoordT& source_chunk);
+
+        /**
+         * @brief Update the end points of the laser scan as miss
+         * @param hit_voxel in map frame
+         * @param source chunk
+         */
+        void updateAllMissPoints(Bonxai::CoordT& miss_voxel,Bonxai::CoordT& source_chunk);
+
+        /**
+         * @brief Update the end points of the laser scan as miss
+         * @param hit_voxel in map frame
+         * @param source chunk
+         * @param bool is_hit, true if the update is for a hit point, false if miss point
+         */
+        void updateAllHitOrMissPoints(Bonxai::CoordT& target_voxel,Bonxai::CoordT& source_chunk,bool is_hit);
+
+        /**
+         * @brief Raycast from start to end and update all the free cells
+         * @param std::vector<CoordT> end_point_voxels
+         * @param CoordT sensor voxel
+         */
+        void updateAllFreeCells(std::vector<Bonxai::CoordT> &end_voxels, Bonxai::CoordT& source_chunk,Bonxai::CoordT &sensor_voxel);
         
+        /**
+         * @brief Increment the update count of all the chunks that were touched
+         * 
+         */
+        void incrementUpdateCount();
+
         /**
          * @brief Update the cache of chunks
          */
@@ -209,6 +236,13 @@ namespace RM
          * @param size_t idx
          */
         void markUnset(size_t idx);
+        
+        /**
+         * @brief Retrieve the state of the chunk
+         * @param idx of the chunk
+         * @return ChunkState of the chunk
+         */
+        ChunkState& getChunkState(size_t idx);
 
         /**
          * @brief Push a chunk key to the read queue
@@ -272,6 +306,8 @@ namespace RM
         std::array<MapPtr,27> chunks_;
         //27 sized fixed array of booleans indicating if the chunk is clean
         std::array<std::pair<ChunkKey,ChunkState>,27> chunk_states_;
+        //Boolean values to track if a chunk was touched atleast once during a particular update. It is reset every update
+        std::array<bool,27> touched_once_;
         //The center coordinate
         Bonxai::CoordT current_source_coord_;
         //Flag to check if the first map has been initted

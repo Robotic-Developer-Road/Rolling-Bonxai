@@ -68,8 +68,8 @@ namespace RM
 
         for (auto &c : chunks_in_play)
         {
-            MapPtr new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution);
-            new_map->setOptions(moption_);
+            // Build a fresh new map
+            MapPtr new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
             
             //Grab the chunk type
             ChunkType chunk_type = getChunkType(source_chunk,c);
@@ -81,6 +81,9 @@ namespace RM
             chunks_[chunk_idx] = new_map;
             chunk_states_[chunk_idx] = std::make_pair(k,ChunkState::CLEAN);
         }
+        //Set the touched once array to all false
+        touched_once_.fill(false);
+        //We are ready to go.
         is_init_ = true;
     }
 
@@ -100,11 +103,13 @@ namespace RM
         //Check the current center coord
         bool is_same_source = (current_source_coord_ == source_chunk);
 
+        //If the source has changed, this means that 
         if (!is_same_source)
         {
-            //update whatever maps you can
-            bestEffortChunkUpdate(points,origin,source_chunk,chunks_in_play);
-
+            //Update the occupancy
+            updateAllOccupancy(points,origin,source_chunk);
+            //Update the source chunk
+            setSourceCoord(source_chunk);
             //Update the cache
             updateCache(source_chunk,chunks_in_play);
         }
@@ -112,22 +117,180 @@ namespace RM
         else
         {
             //Just update all the occupancies
-            fullChunkUpdate(points,origin,source_chunk,chunks_in_play);
+            updateAllOccupancy(points,origin,source_chunk);
         }
     }
 
-    void ChunkManager::bestEffortChunkUpdate(PCLPointCloud &points,PCLPoint& origin,
-                                             Bonxai::CoordT& source_chunk,
-                                             std::vector<Bonxai::CoordT> &chunks_in_play)
+    void ChunkManager::updateAllOccupancy(PCLPointCloud &points,PCLPoint& origin,
+                                          Bonxai::CoordT& source_chunk)
     {
-        //todo
+        using V3D = Bonxai::OccupancyMap::Vector3D;
+        //Vectors to store hit or miss voxel coords
+        std::vector<Bonxai::CoordT> end_point_voxels_map;
+        Bonxai::CoordT sensor_voxel = mapPointToVoxelCoord(origin);
+        //Origin as V3D
+        V3D origin_map_v3d = Bonxai::ConvertPoint<V3D>(origin);
+        //Iterate through the pointcloud
+        for (const auto& p_map : points)
+        {
+            //Convert p_world to V3D
+            V3D p_world_v3d = Bonxai::ConvertPoint<V3D>(p_map);
+            V3D from_to = p_world_v3d - origin_map_v3d;
+            double distance_squared = from_to.squaredNorm();
+            double range_squared = sensor_params_.max_range * sensor_params_.max_range;
+            bool is_hit = distance_squared < range_squared;
+
+            if (is_hit)
+            {
+                //Convert to Voxel, update the relevant map then add to the hit voxels collection
+                Bonxai::CoordT hit_voxel = mapPointToVoxelCoord(p_map);
+                updateAllHitPoints(hit_voxel,source_chunk);
+                end_point_voxels_map.push_back(hit_voxel);
+            }
+            else
+            {
+                //Distance between the sensor and point is greater than or equal to the range
+                //So we have no idea if it actually hit anything at the range so we take it as a miss.
+                V3D from_to_unit = from_to / std::sqrt(distance_squared);
+                V3D from_to_range = from_to_unit * sensor_params_.max_range;
+                
+                //Compute a point along the vector that is equal to the range
+                V3D new_to_point_v3d = origin_map_v3d + from_to_range;
+                PCLPoint new_to_point = Bonxai::ConvertPoint<PCLPoint>(new_to_point_v3d);
+
+                //Convert the point to a voxel coordinate in world frame
+                Bonxai::CoordT missed_voxel = mapPointToVoxelCoord(new_to_point);
+                updateAllMissPoints(missed_voxel,source_chunk);
+                end_point_voxels_map.push_back(missed_voxel);
+            }
+        }
+        //Update the free cells
+        updateAllFreeCells(end_point_voxels_map,source_chunk,sensor_voxel);
+        //Finally, increment the update count
+        incrementUpdateCount();
+    }
+    void ChunkManager::updateAllHitPoints(Bonxai::CoordT& hit_voxel,Bonxai::CoordT& source_chunk)
+    {
+        //Get the parent chunk
+        Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(hit_voxel);
+        //
+        if (is26neibor(source_chunk,parent_chunk))
+        {
+            //Voxel Coordinate of parent chunk
+            Bonxai::CoordT parent_chunk_voxel_origin = chunkCoordToVoxelCoord(parent_chunk);
+            Bonxai::CoordT relative_voxel = hit_voxel - parent_chunk_voxel_origin;
+            //This relative voxel coordinate is the voxel coordinate in the chunk frame
+            ChunkType ctype = getChunkType(source_chunk,parent_chunk);
+            size_t target_index = chunkTypeToIndex(ctype);
+
+            if (chunks_.at(target_index)->isAccessorBound())
+            {
+                chunks_.at(target_index)->addHitPoint(relative_voxel);
+            }
+            else
+            {
+                auto accessor = chunks_.at(target_index)->getGrid().createAccessor();
+                chunks_.at(target_index)->addHitPoint(relative_voxel,accessor);
+            }
+
+            //mark parent chunk as dirty if its not already
+            if (getChunkState(target_index) != ChunkState::DIRTY) {markDirty(target_index);}
+            //This chunk was touched during the update
+            this->touched_once_[target_index] = true;
+        }
     }
 
-    void ChunkManager::fullChunkUpdate(PCLPointCloud &points,PCLPoint& origin,
-                                             Bonxai::CoordT& source_chunk,
-                                             std::vector<Bonxai::CoordT> &chunks_in_play)
+    void ChunkManager::updateAllMissPoints(Bonxai::CoordT& miss_voxel,Bonxai::CoordT& source_chunk)
     {
-        //todo
+        //Get the parent chunk
+        Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(miss_voxel);
+        
+        if (is26neibor(source_chunk,parent_chunk))
+        {
+            //Voxel Coordinate of parent chunk
+            Bonxai::CoordT parent_chunk_voxel_origin = chunkCoordToVoxelCoord(parent_chunk);
+            Bonxai::CoordT relative_voxel = miss_voxel - parent_chunk_voxel_origin;
+            //This relative voxel coordinate is the voxel coordinate in the chunk frame
+            ChunkType ctype = getChunkType(source_chunk,parent_chunk);
+            size_t target_index = chunkTypeToIndex(ctype);
+
+            if (chunks_.at(target_index)->isAccessorBound())
+            {
+                chunks_.at(target_index)->addMissPoint(relative_voxel);
+            }
+            else
+            {
+                auto accessor = chunks_.at(target_index)->getGrid().createAccessor();
+                chunks_.at(target_index)->addMissPoint(relative_voxel,accessor);
+            }
+            //mark the chunk as dirty if its not already dirty
+            if (getChunkState(target_index) != ChunkState::DIRTY) {markDirty(target_index);}
+            //This chunk was touched during the update
+            this->touched_once_[target_index] = true;
+        }
+    }
+
+    void ChunkManager::updateAllHitOrMissPoints(Bonxai::CoordT& target_voxel,Bonxai::CoordT& source_chunk,bool is_hit)
+    {
+        if (is_hit)
+        {
+            updateAllHitPoints(target_voxel,source_chunk);
+        }
+        else
+        {
+            updateAllMissPoints(target_voxel,source_chunk);
+        }
+    }
+
+    void ChunkManager::updateAllFreeCells(std::vector<Bonxai::CoordT> &end_voxels, Bonxai::CoordT& source_chunk,Bonxai::CoordT &sensor_voxel)
+    {
+        auto clearPointLambda = [this,&source_chunk](const Bonxai::CoordT &coord)
+        {
+            //This gonna be the exact same as updateMissPoint
+            Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(coord);
+            if (is26neibor(source_chunk,parent_chunk))
+            {
+                //Voxel Coordinate of parent chunk
+                Bonxai::CoordT parent_chunk_voxel_origin = chunkCoordToVoxelCoord(parent_chunk);
+                Bonxai::CoordT relative_voxel = coord - parent_chunk_voxel_origin;
+                //This relative voxel coordinate is the voxel coordinate in the chunk frame
+                ChunkType ctype = getChunkType(source_chunk,parent_chunk);
+                size_t target_index = chunkTypeToIndex(ctype);
+
+                if (this->chunks_.at(target_index)->isAccessorBound())
+                {
+                    this->chunks_.at(target_index)->addMissPoint(relative_voxel);
+                }
+                else
+                {
+                    auto accessor = chunks_.at(target_index)->getGrid().createAccessor();
+                    this->chunks_.at(target_index)->addMissPoint(relative_voxel,accessor);
+                }
+                //mark the chunk as dirty if its not already dirty
+                if (getChunkState(target_index) != ChunkState::DIRTY) {markDirty(target_index);}
+                //This chunk was touched during the update
+                this->touched_once_[target_index] = true;
+            }
+        }; // clearPointLambda
+        
+        //Iterate through all the end voxels and raycast update
+        for (const auto& end_voxel : end_voxels)
+        {
+            Bonxai::MapUtils::RayIterator(sensor_voxel,end_voxel,clearPointLambda);
+        }
+    }
+
+    void ChunkManager::incrementUpdateCount()
+    {
+        for (size_t i = 0 ; i < this->touched_once_.size() ; ++i)
+        {
+            if (touched_once_.at(i))
+            {
+                this->chunks_[i]->incrementUpdateCount();
+            }
+        }
+
+        touched_once_.fill(false);
     }
 
     void ChunkManager::updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &chunks_in_play)
@@ -256,6 +419,16 @@ namespace RM
 
         chunk_states_[idx].first = "_";
         chunk_states_[idx].second = ChunkState::UNSET;
+    }
+
+    ChunkManager::ChunkState& ChunkManager::getChunkState(size_t idx)
+    {
+        if (idx >= chunk_states_.max_size())
+        {
+            std::cout << "Invalid Mark Unset ID" << std::endl;
+            return;
+        }
+        return chunk_states_.at(idx).second;
     }
 
     void ChunkManager::rqPush(ChunkKey &key, Bonxai::CoordT &coord)
