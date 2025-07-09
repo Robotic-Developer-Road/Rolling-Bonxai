@@ -278,8 +278,13 @@ namespace Bonxai
          */
         void addMissPoint(const Bonxai::CoordT& point);
 
-
-
+        /**
+         * @brief Increment the update count by 1 and loop back to 1 after 4
+         */
+        void incrementUpdateCount()
+        {
+            this->upda
+        }
 
         /**
          * @brief The main update function exposed to the user to update PointCloud

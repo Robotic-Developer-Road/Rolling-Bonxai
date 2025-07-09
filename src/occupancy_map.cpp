@@ -361,6 +361,14 @@ namespace Bonxai
         miss_coords_.push_back(coord);
     }
 
+    void OccupancyMap::incrementUpdateCount()
+    {
+        if (++this->update_count_ == 4)
+        {
+            this->update_count_ = 1;
+        }
+    }
+
     template <typename PointT, typename Allocator>
     void OccupancyMap::insertPointCloud(const std::vector<PointT, Allocator>& points, 
                               const PointT& origin, double max_range)
