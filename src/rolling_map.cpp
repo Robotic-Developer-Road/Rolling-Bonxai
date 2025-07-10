@@ -216,24 +216,24 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     //Get the visualization stuff
     if (viz_occupied_)
     {
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"OccupiedVoxels: " << occupied_voxels_.size());
         map_manager_.getOccupiedVoxels(occupied_voxels_);
         sensor_msgs::msg::PointCloud2 cloud_occ_msg;
-        cloud_occ_msg.header.frame_id = frame_params_.map_frame;
-        cloud_occ_msg.header.stamp = now();
         pcl::toROSMsg(occupied_voxels_, cloud_occ_msg);
+        cloud_occ_msg.header.frame_id = frame_params_.map_frame;
+        cloud_occ_msg.header.stamp = msg->header.stamp;
         occupied_voxel_pub_->publish(cloud_occ_msg);
-        RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"Published Occupied Voxels");
     }
 
     if (viz_free_)
     {
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"FreeVoxels: " << occupied_voxels_.size());
         map_manager_.getOccupiedVoxels(free_voxels_);
         sensor_msgs::msg::PointCloud2 cloud_free_msg;
-        cloud_free_msg.header.frame_id = frame_params_.map_frame;
-        cloud_free_msg.header.stamp = now();
         pcl::toROSMsg(free_voxels_, cloud_free_msg);
+        cloud_free_msg.header.frame_id = frame_params_.map_frame;
+        cloud_free_msg.header.stamp = msg->header.stamp;
         free_voxel_pub_->publish(cloud_free_msg);
-        RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"Published Free Voxels");
     }
 
 
