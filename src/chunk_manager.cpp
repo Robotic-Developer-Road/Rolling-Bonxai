@@ -102,7 +102,7 @@ namespace RM
         auto source_chunk = voxelCoordToChunkCoord(source_voxel);
 
         //Check if there are any read operations in progress
-        if (isReadIORunning() || isWriteIORunning())
+        if (hasPendingIO())
         {
             //The entire cache is in a transient state so we return right away
             return;
@@ -302,7 +302,7 @@ namespace RM
 
     void ChunkManager::getAllOccupiedVoxels(PCLPointCloud& points)
     {
-        if (isReadIORunning() || isWriteIORunning())
+        if (hasPendingIO())
         {
             return;
         }
@@ -331,7 +331,7 @@ namespace RM
 
     void ChunkManager::getAllFreeVoxels(PCLPointCloud& points)
     {
-        if (isReadIORunning() || isWriteIORunning())
+        if (hasPendingIO())
         {
             return;
         }
@@ -690,10 +690,7 @@ namespace RM
     }
 
     void ChunkManager::readWorker()
-    {
-        //Set the read io running flag
-        this->read_io_running_ = true;
-        
+    {        
         while (true)
         {
             std::pair<ChunkKey,Bonxai::CoordT> pair2read;
@@ -747,15 +744,11 @@ namespace RM
                 std::cout << "Tring to read into chunk that already exists" << std::endl;
             }
         }
-        //Kill read io
-        read_io_running_ = false;
         return;
     }
 
     void ChunkManager::writeWorker()
     {
-        write_io_running_ = true;
-
         while (true)
         {
             std::pair<ChunkKey,MapPtr> pair2write;
@@ -782,19 +775,28 @@ namespace RM
             //Destroy the map. It will go out of scope
             map2write.reset();
         }
-        write_io_running_ = false;
         return;
     }
 
-    bool ChunkManager::isReadIORunning() const
+    bool ChunkManager::hasPendingIO()
     {
-        return read_io_running_;
+        bool read_in_progress, write_in_progress;
+
+        {
+            std::lock_guard<std::mutex> r_lock(read_mutex_);
+            read_in_progress = !read_queue_.empty();
+        }
+
+
+        {
+            std::lock_guard<std::mutex> w_lock(write_mutex_);
+            write_in_progress = !write_queue_.empty();
+        }
+
+        return read_in_progress || write_in_progress;
+
     }
 
-    bool ChunkManager::isWriteIORunning() const
-    {
-        return write_io_running_;
-    }
 
     bool ChunkManager::is26neibor(const Bonxai::CoordT& chunk_origin,const Bonxai::CoordT& chunk_coordinate)
     {

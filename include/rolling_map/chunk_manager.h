@@ -308,17 +308,11 @@ namespace RM
         void writeWorker();
 
         /**
-         * @brief Check if the read IO is running
-         * @return bool
+         * @brief Check if there are pending IO tasks running by polling the emptiness of the read and write queues
+         * @return bool true if atleast one of the queues is open
          */
-        bool isReadIORunning() const;
+        bool hasPendingIO();
 
-        /**
-         * @brief Check if the write IO is running
-         * @return bool
-         */
-        bool isWriteIORunning() const;
-        
         /**
          * @brief Check if the chunk is a 26 neighbor
          * @param const Bonxai::CoordT& chunk_origin
@@ -370,8 +364,6 @@ namespace RM
 
         //Atomic Flags
         std::atomic<bool> io_running_{true};
-        std::atomic<bool> read_io_running_{false};
-        std::atomic<bool> write_io_running_{false};
 
         //Read thread
         std::thread read_thread_;
