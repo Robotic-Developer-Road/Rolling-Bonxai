@@ -1,5 +1,6 @@
 #ifndef CHUNK_MANAGER_H
 #define CHUNK_MANAGER_H
+#include "rclcpp/rclcpp.hpp"
 
 #include "bonxai_map/occupancy_map.hpp"
 #include "rolling_map/rolling_map_params.h"
