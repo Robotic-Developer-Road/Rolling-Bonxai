@@ -211,13 +211,16 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     PCLPoint global_sensor_position(t.x,t.y,t.z);
     
     //Chunk Updates happen here!
-    map_manager_.updateMap(world_points,global_sensor_position);
+    bool did_update_happen = map_manager_.updateMap(world_points,global_sensor_position);
 
     //Get the visualization stuff
     if (viz_occupied_)
     {
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"OccupiedVoxels: " << occupied_voxels_.size());
-        map_manager_.getOccupiedVoxels(occupied_voxels_);
+        if (did_update_happen)
+        {
+            map_manager_.getOccupiedVoxels(occupied_voxels_);
+        }
+        
         sensor_msgs::msg::PointCloud2 cloud_occ_msg;
         pcl::toROSMsg(occupied_voxels_, cloud_occ_msg);
         cloud_occ_msg.header.frame_id = frame_params_.map_frame;
@@ -228,7 +231,12 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     if (viz_free_)
     {
         RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"FreeVoxels: " << occupied_voxels_.size());
-        map_manager_.getOccupiedVoxels(free_voxels_);
+
+        if (did_update_happen)
+        {
+            map_manager_.getOccupiedVoxels(free_voxels_);
+        }
+        
         sensor_msgs::msg::PointCloud2 cloud_free_msg;
         pcl::toROSMsg(free_voxels_, cloud_free_msg);
         cloud_free_msg.header.frame_id = frame_params_.map_frame;
@@ -236,8 +244,6 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
         free_voxel_pub_->publish(cloud_free_msg);
     }
 
-
-    
     const double end_time = this->get_clock()->now().seconds();
     double elapsed_s = end_time - start_time;
     
