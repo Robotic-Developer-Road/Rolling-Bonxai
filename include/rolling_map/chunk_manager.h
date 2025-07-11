@@ -74,17 +74,16 @@ namespace RM
          * @param Bonxai::CoordT &source_chunk
          * @param std::vector<Bonxai::CoordT> &nb_chunks
          */
-        void initFirstChunks(Bonxai::CoordT &source_chunk,
-                             std::vector<Bonxai::CoordT> &nb_chunks);
+        void initFirstChunks(Bonxai::CoordT &source_chunk);
 
         /**
          * @brief Update the chunks
          * @param PCLPointCloud &points
          * @param PCLPoint &origin
          * @param std::vector<Bonxai::CoordT> &nb_chunks
+         * @return bool
          */
-        void updateChunks(PCLPointCloud &points,PCLPoint &origin,
-                          std::vector<Bonxai::CoordT> &nb_chunks);
+        bool updateChunks(PCLPointCloud &points,PCLPoint &origin);
         
         /**
          * @brief Get all the occupied voxels
@@ -191,9 +190,8 @@ namespace RM
         /**
          * @brief Update the cache of chunks
          * @param Bonxai::CoordT source_chunk
-         * @param std::vector<Bonxai::CoordT> nb_chunks
          */
-        void updateCache(Bonxai::CoordT& source_chunk,std::vector<Bonxai::CoordT> &nb_chunks);
+        void updateCache(Bonxai::CoordT& new_source_chunk);
 
         /**
          * @brief Get the chunk type
@@ -288,7 +286,7 @@ namespace RM
          * @brief Push a chunk key to the read queue
          * @param ChunkKey& key
          */
-        void rqPush(ChunkKey &key, Bonxai::CoordT &coord);
+        void rqPush(ChunkKey &key, size_t cache_index);
 
         /**
          * @brief Push a chunk key to the write queue
@@ -322,7 +320,6 @@ namespace RM
          */
         bool is26neibor(const Bonxai::CoordT& chunk_origin,const Bonxai::CoordT& chunk_coordinate);
 
-
         //Parameters
         SensorParams sensor_params_;
         MapParams map_params_;
@@ -345,14 +342,14 @@ namespace RM
         //The center coordinate
         Bonxai::CoordT current_source_coord_;
         //Flag to check if the first map has been initted
-        bool is_init_ {false};
+        std::array<bool,27> map_live_;
 
         /////////////////
         ////IO Stuff/////
         /////////////////
 
         //Queue containing the set of map ids to read from the disc  
-        std::queue<std::pair<ChunkKey,Bonxai::CoordT>> read_queue_;
+        std::queue<std::pair<ChunkKey,size_t>> read_queue_;
         size_t rq_size_ {0};
 
         //Queue containing the set of maps to write to the disc
@@ -360,7 +357,7 @@ namespace RM
         size_t wq_size_ {0};
 
         //Mutexes
-        std::mutex read_mutex_, write_mutex_;
+        std::mutex read_mutex_, write_mutex_, liveliness_mutex_;
         std::condition_variable read_cv_, write_cv_;
 
         //Atomic Flags
