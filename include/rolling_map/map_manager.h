@@ -40,9 +40,9 @@ namespace RM
          * @brief Update function called by some cloud callback to update the entire map
          * @param PCLPointCloud& points
          * @param PCLPoint& origin
-         * @return void
+         * @return bool
          */
-        void updateMap(PCLPointCloud& points,PCLPoint& origin);
+        bool updateMap(PCLPointCloud& points,PCLPoint& origin);
 
         /**
          * @brief Get the free voxels in the map

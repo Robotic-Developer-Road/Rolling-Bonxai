@@ -20,7 +20,7 @@ namespace RM
         chunk_manager_ = std::make_unique<ChunkManager>(sp_,mp_,cp_);
     }
     
-    void MapManager::updateMap(PCLPointCloud& points,PCLPoint& origin)
+    bool MapManager::updateMap(PCLPointCloud& points,PCLPoint& origin)
     {
         //The voxel coordinate where the origin is found in
         auto voxel_coord_sensor = this->mapPointToVoxelCoord(origin);
@@ -28,33 +28,17 @@ namespace RM
         //The chunk coordinate where the origin voxel is found in
         auto chunk_coord_sensor = this->voxelCoordToChunkCoord(voxel_coord_sensor);
 
-        //How many neibors and how many chunks are in play
-        constexpr size_t num_neibors = 26;
-
-        //Create a vector containing all the chunks in play. Should be a maximum of 27
-        std::vector<Bonxai::CoordT> nb_chunks;
-
-        //Reserve memory for faster pushbacks
-        nb_chunks.reserve(num_neibors);
-
-        //Get the neibor coordinates
-        auto face_neibors = getFaceNeibors(chunk_coord_sensor);
-        auto edge_neibors = getEdgeNeibors(chunk_coord_sensor);
-        auto corner_neibors = getCornerNeibors(chunk_coord_sensor);
-
-        for (const auto &face : face_neibors)     {nb_chunks.push_back(face);}
-        for (const auto &edge : edge_neibors)     {nb_chunks.push_back(edge);}
-        for (const auto &corner : corner_neibors) {nb_chunks.push_back(corner);}
-        
         if (first_update_)
         {
-            chunk_manager_->initFirstChunks(chunk_coord_sensor,nb_chunks);
+            chunk_manager_->initFirstChunks(chunk_coord_sensor);
             first_update_ = false;
+            return false;
         }
 
         else
         {
-            chunk_manager_->updateChunks(points,origin,nb_chunks);
+            bool able_to_update = chunk_manager_->updateChunks(points,origin);
+            return able_to_update;
         }
     }
 
