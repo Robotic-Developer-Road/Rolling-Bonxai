@@ -9,6 +9,7 @@ import yaml
 
 def launch_setup(context, *args, **kwargs):
     param_file_input = LaunchConfiguration('param_file').perform(context)
+    dbg_flag = LaunchConfiguration('debug').perform(context)
 
     # Ensure .yaml extension (do not allow .yml)
     if param_file_input.endswith('.yml'):
@@ -38,19 +39,32 @@ def launch_setup(context, *args, **kwargs):
         raise RuntimeError("Missing 'c_chunk_folder' in parameter file.")
     if not os.path.exists(chunk_folder):
         raise RuntimeError(f"Chunk folder does not exist: {chunk_folder}")
-    print(params)
+    
+
+    rolling_map_node_debug = Node(
+        package=package_name,
+        executable='rolling_map_node',
+        name='rolling_map_node',
+        output='screen',
+        parameters=[params],
+        prefix=["gdbserver localhost:3000"],
+        remappings=[('/cloud_in', '/zed/zed_node/point_cloud/cloud_registered')])
+    
     rolling_map_node = Node(
         package=package_name,
         executable='rolling_map_node',
         name='rolling_map_node',
         output='screen',
         parameters=[params],
-        remappings=[
-            ('/cloud_in', '/zed/zed_node/point_cloud/cloud_registered')
-        ]
-    )
+        remappings=[('/cloud_in', '/zed/zed_node/point_cloud/cloud_registered')])
+    
+    if dbg_flag == 'true':
+        return [rolling_map_node_debug]
+    
+    else:
+        return [rolling_map_node]
 
-    return [rolling_map_node]
+
 
 def generate_launch_description():
     return LaunchDescription([
@@ -58,6 +72,11 @@ def generate_launch_description():
             'param_file',
             default_value='rolling_map_params',
             description='YAML file name (with or without .yaml) in the config/ directory of the package'
+        ),
+        DeclareLaunchArgument(
+            'debug',
+            default_value='false',
+            description='Launch node under gdbserver for debugging'
         ),
         OpaqueFunction(function=launch_setup)
     ])
