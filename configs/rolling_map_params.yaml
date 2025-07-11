@@ -2,7 +2,7 @@ map_frame: "map"
 sensor_frame: "zed_camera_link"
 robot_frame: "zed_camera_link"
 
-m_resolution: 0.1
+m_resolution: 0.10
 m_occupancy_min_thresh: 0.12
 m_occupancy_max_thresh: 0.97
 
