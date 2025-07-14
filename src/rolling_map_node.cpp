@@ -1,5 +1,5 @@
 #include "rclcpp/rclcpp.hpp"
-#include "rolling_map/rolling_map.h"
+#include "rolling_map/map_server.h"
 
 int main(int argc, char * argv[])
 {

@@ -1,9 +1,9 @@
-#ifndef CHUNK_MANAGER_H
-#define CHUNK_MANAGER_H
+#ifndef ROLLING_MAP__CHUNK_MANAGER_H
+#define ROLLING_MAP__CHUNK_MANAGER_H
 #include "rclcpp/rclcpp.hpp"
 
 #include "bonxai_map/occupancy_map.hpp"
-#include "rolling_map/rolling_map_params.h"
+#include "rolling_map/map_params.h"
 #include "bonxai_core/serialization.hpp"
 
 #include <pcl/point_cloud.h>
@@ -421,4 +421,4 @@ namespace RM
     };
 }
 
-#endif // CHUNK_MANAGER_H
+#endif // ROLLING_MAP__CHUNK_MANAGER_H

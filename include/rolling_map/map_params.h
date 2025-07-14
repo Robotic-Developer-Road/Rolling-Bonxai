@@ -1,5 +1,5 @@
-#ifndef ROLLING_MAP_PARAMS_H
-#define ROLLING_MAP_PARAMS_H
+#ifndef ROLLING_MAP__PARAMS_H
+#define ROLLING_MAP__PARAMS_H
 #include <string>
 /*
 A collection of data structs to
@@ -38,4 +38,4 @@ struct ChunkParams
     std::string chunk_folder_path {"chunk_folder"}; //path to the chunk folder
 };
 }
-#endif //ROLLING_MAP_PARAMS_H
+#endif //ROLLING_MAP__PARAMS_H

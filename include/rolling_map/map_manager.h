@@ -1,11 +1,11 @@
-#ifndef MAP_MANAGER_H
-#define MAP_MANAGER_H
+#ifndef ROLLING_MAP__MAP_MANAGER_H
+#define ROLLING_MAP__MAP_MANAGER_H
 
 #include "rclcpp/rclcpp.hpp"
 
 #include "bonxai_map/occupancy_map.hpp"
 #include "rolling_map/chunk_manager.h"
-#include "rolling_map/rolling_map_params.h"
+#include "rolling_map/map_params.h"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -145,4 +145,4 @@ namespace RM
     };
 
 } //namespace RM
-#endif // MAP_MANAGER_H
+#endif // ROLLING_MAP__MAP_MANAGER_H
