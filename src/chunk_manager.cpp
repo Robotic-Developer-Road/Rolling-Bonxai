@@ -84,8 +84,8 @@ namespace RM
 
     bool ChunkManager::updateChunks(PCLPointCloud &points,PCLPoint& origin)
     {
-        auto source_voxel = mapPointToVoxelCoord(origin);
-        auto source_chunk = voxelCoordToChunkCoord(source_voxel);
+        auto source_voxel = utils::mapPointToVoxelCoord(origin,map_params_.resolution);
+        auto source_chunk = utils::voxelCoordToChunkCoord(source_voxel,chunk_params_.chunk_dim);
         
         // isAnyBad();
 
@@ -123,7 +123,7 @@ namespace RM
         using V3D = Bonxai::OccupancyMap::Vector3D;
         //Vectors to store hit or miss voxel coords
         std::vector<Bonxai::CoordT> end_point_voxels_map;
-        Bonxai::CoordT sensor_voxel = mapPointToVoxelCoord(origin);
+        Bonxai::CoordT sensor_voxel = utils::mapPointToVoxelCoord(origin,map_params_.resolution);
         //Origin as V3D
         V3D origin_map_v3d = Bonxai::ConvertPoint<V3D>(origin);
         //Iterate through the pointcloud
@@ -139,7 +139,7 @@ namespace RM
             if (is_hit)
             {
                 //Convert to Voxel, update the relevant map then add to the hit voxels collection
-                Bonxai::CoordT hit_voxel = mapPointToVoxelCoord(p_map);
+                Bonxai::CoordT hit_voxel = utils::mapPointToVoxelCoord(p_map,map_params_.resolution);
                 updateAllHitPoints(hit_voxel,source_chunk);
                 end_point_voxels_map.push_back(hit_voxel);
             }
@@ -155,7 +155,7 @@ namespace RM
                 PCLPoint new_to_point = Bonxai::ConvertPoint<PCLPoint>(new_to_point_v3d);
 
                 //Convert the point to a voxel coordinate in world frame
-                Bonxai::CoordT missed_voxel = mapPointToVoxelCoord(new_to_point);
+                Bonxai::CoordT missed_voxel = utils::mapPointToVoxelCoord(new_to_point,map_params_.resolution);
                 updateAllMissPoints(missed_voxel,source_chunk);
                 end_point_voxels_map.push_back(missed_voxel);
             }
@@ -168,12 +168,12 @@ namespace RM
     void ChunkManager::updateAllHitPoints(Bonxai::CoordT& hit_voxel,Bonxai::CoordT& source_chunk)
     {
         //Get the parent chunk
-        Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(hit_voxel);
+        Bonxai::CoordT parent_chunk = utils::voxelCoordToChunkCoord(hit_voxel,chunk_params_.chunk_dim);
         //
         if (is26neibor(source_chunk,parent_chunk))
         {
             //Voxel Coordinate of parent chunk
-            Bonxai::CoordT parent_chunk_voxel_origin = chunkCoordToVoxelCoord(parent_chunk);
+            Bonxai::CoordT parent_chunk_voxel_origin = utils::chunkCoordToVoxelCoord(parent_chunk,chunk_params_.chunk_dim);
             Bonxai::CoordT relative_voxel = hit_voxel - parent_chunk_voxel_origin;
             //This relative voxel coordinate is the voxel coordinate in the chunk frame
             ChunkType ctype = getChunkType(source_chunk,parent_chunk);
@@ -199,12 +199,12 @@ namespace RM
     void ChunkManager::updateAllMissPoints(Bonxai::CoordT& miss_voxel,Bonxai::CoordT& source_chunk)
     {
         //Get the parent chunk
-        Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(miss_voxel);
+        Bonxai::CoordT parent_chunk = utils::voxelCoordToChunkCoord(miss_voxel,chunk_params_.chunk_dim);
         
         if (is26neibor(source_chunk,parent_chunk))
         {
             //Voxel Coordinate of parent chunk
-            Bonxai::CoordT parent_chunk_voxel_origin = chunkCoordToVoxelCoord(parent_chunk);
+            Bonxai::CoordT parent_chunk_voxel_origin = utils::chunkCoordToVoxelCoord(parent_chunk,chunk_params_.chunk_dim);
             Bonxai::CoordT relative_voxel = miss_voxel - parent_chunk_voxel_origin;
             //This relative voxel coordinate is the voxel coordinate in the chunk frame
             ChunkType ctype = getChunkType(source_chunk,parent_chunk);
@@ -243,11 +243,11 @@ namespace RM
         auto clearPointLambda = [this,&source_chunk](const Bonxai::CoordT& coord) 
         {
             //This gonna be the exact same as updateMissPoint
-            Bonxai::CoordT parent_chunk = voxelCoordToChunkCoord(coord);
+            Bonxai::CoordT parent_chunk = utils::voxelCoordToChunkCoord(coord,chunk_params_.chunk_dim);
             if (is26neibor(source_chunk,parent_chunk))
             {
                 //Voxel Coordinate of parent chunk
-                Bonxai::CoordT parent_chunk_voxel_origin = chunkCoordToVoxelCoord(parent_chunk);
+                Bonxai::CoordT parent_chunk_voxel_origin = utils::chunkCoordToVoxelCoord(parent_chunk,chunk_params_.chunk_dim);
                 Bonxai::CoordT relative_voxel = coord - parent_chunk_voxel_origin;
                 //This relative voxel coordinate is the voxel coordinate in the chunk frame
                 ChunkType ctype = getChunkType(source_chunk,parent_chunk);
@@ -302,14 +302,14 @@ namespace RM
         {
             auto key = chunk_states_[i].first;
             Bonxai::CoordT cc = this->chunkKeyToChunkCoord(key);
-            Bonxai::CoordT cc_origin_voxel_map = chunkCoordToVoxelCoord(cc);
+            Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(cc,chunk_params_.chunk_dim);
 
             auto visitor = [this,&cc_origin_voxel_map,&points](Bonxai::MapUtils::CellOcc &cell,const Bonxai::CoordT& coord)
             {
                 if (cell.probability_log > moption_.occupancy_threshold_log)
                 {
                     Bonxai::CoordT map_voxel = coord + cc_origin_voxel_map;
-                    auto pcpt = this->voxelCoordToMapPoint(map_voxel);
+                    auto pcpt = utils::voxelCoordToMapPoint(map_voxel,map_params_.resolution);
                     points.push_back(pcpt);
                 }
 
@@ -332,14 +332,14 @@ namespace RM
         {
             auto key = chunk_states_[i].first;
             Bonxai::CoordT cc = this->chunkKeyToChunkCoord(key);
-            Bonxai::CoordT cc_origin_voxel_map = chunkCoordToVoxelCoord(cc);
+            Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(cc,chunk_params_.chunk_dim);
 
             auto visitor = [this,&cc_origin_voxel_map,&points](Bonxai::MapUtils::CellOcc &cell,const Bonxai::CoordT& coord)
             {
                 if (cell.probability_log < moption_.occupancy_threshold_log)
                 {
                     Bonxai::CoordT map_voxel = coord + cc_origin_voxel_map;
-                    auto pcpt = this->voxelCoordToMapPoint(map_voxel);
+                    auto pcpt = utils::voxelCoordToMapPoint(map_voxel,map_params_.resolution);
                     points.push_back(pcpt);
                 }
             };
@@ -818,7 +818,6 @@ namespace RM
 
     }
 
-
     bool ChunkManager::is26neibor(const Bonxai::CoordT& chunk_origin,const Bonxai::CoordT& chunk_coordinate)
     {
         auto delta = chunk_coordinate - chunk_origin;
@@ -826,88 +825,5 @@ namespace RM
         return (std::abs(delta.x)<=1 &&
                 std::abs(delta.y)<=1 &&
                 std::abs(delta.z)<=1 && !(delta.x==0 && delta.y==0 && delta.z==0));
-    }
-
-    Bonxai::CoordT ChunkManager::mapPointToVoxelCoord(const PCLPoint& point)
-    {
-        double inv_resolution = 1.0 / map_params_.resolution;
-        return {
-            static_cast<int32_t>(std::floor(point.x * inv_resolution)),
-            static_cast<int32_t>(std::floor(point.y * inv_resolution)),
-            static_cast<int32_t>(std::floor(point.z * inv_resolution))};
-    }
-
-    ChunkManager::PCLPoint ChunkManager::voxelCoordToMapPoint(const Bonxai::CoordT& coord)
-    {
-        double res = map_params_.resolution;
-        return {
-            (static_cast<double>(coord.x)) * res,
-            (static_cast<double>(coord.y)) * res,
-            (static_cast<double>(coord.z)) * res};
-    }
-
-    ChunkManager::PCLPoint ChunkManager::voxelCoordToMapCenterPoint(const Bonxai::CoordT& coord)
-    {   
-        double res = map_params_.resolution;
-        double half = 0.5 * map_params_.resolution;
-        return {
-            (static_cast<double>(coord.x)) * res + half,
-            (static_cast<double>(coord.y)) * res + half,
-            (static_cast<double>(coord.z)) * res + half};
-    }
-
-    Bonxai::CoordT ChunkManager::voxelCoordToChunkCoord(const Bonxai::CoordT& vc)
-    {
-        const int32_t chunk_size = chunk_params_.chunk_dim;
-
-        return {
-        vc.x >= 0 ? vc.x / chunk_size : (vc.x - chunk_size + 1) / chunk_size,
-        vc.y >= 0 ? vc.y / chunk_size : (vc.y - chunk_size + 1) / chunk_size,
-        vc.z >= 0 ? vc.z / chunk_size : (vc.z - chunk_size + 1) / chunk_size
-        };
-    }
-
-    Bonxai::CoordT ChunkManager::chunkCoordToVoxelCoord(const Bonxai::CoordT& cc)
-    {
-        const int32_t chunk_size = chunk_params_.chunk_dim;
-        return {
-            cc.x * chunk_size,
-            cc.y * chunk_size,
-            cc.z * chunk_size
-        };
-    }
-
-    Bonxai::CoordT ChunkManager::mapFramePointToChunkFrameCoord(const PCLPoint& mP)
-    {
-        using Coord = Bonxai::CoordT;
-
-        // Convert the Map Frame Point mP to Map Frame Voxel Coordinate mVC
-        Coord mVC = this->mapPointToVoxelCoord(mP);
-
-        // Find the Coordinate of the Chunk mCC
-        Coord mCC = this->voxelCoordToChunkCoord(mVC);
-
-        // Get the Origin Voxel in the Chunk as a Voxel Coordinate in map frame
-        Coord mOriginVC = this->chunkCoordToVoxelCoord(mCC);
-
-        // And Finally, make the mVC we calculated earlier relative to mOriginVC
-        Coord cVC = mVC - mOriginVC;
-
-        return cVC;
-
-    }
-
-    ChunkManager::PCLPoint ChunkManager::mapFramePointToChunkFramePoint(const PCLPoint& mp)
-    {
-        auto mVC = mapPointToVoxelCoord(mp);
-        auto mCC = voxelCoordToChunkCoord(mVC);
-        auto mCC_Voxel = chunkCoordToVoxelCoord(mCC);
-        PCLPoint chunk_origin = voxelCoordToMapPoint(mCC_Voxel);
-
-        PCLPoint new_pt(mp.x - chunk_origin.x,
-                        mp.y - chunk_origin.y,
-                        mp.z - chunk_origin.z);
-        
-        return new_pt;
     }
 }

@@ -2,9 +2,10 @@
 #define ROLLING_MAP__CHUNK_MANAGER_H
 #include "rclcpp/rclcpp.hpp"
 
+#include "bonxai_core/serialization.hpp"
 #include "bonxai_map/occupancy_map.hpp"
 #include "rolling_map/map_params.h"
-#include "bonxai_core/serialization.hpp"
+#include "rolling_map/utils.h"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -368,56 +369,6 @@ namespace RM
 
         //Write thread
         std::thread write_thread_;
-
-        ///////////////////
-        ////Conversion/////
-        ///////////////////
-        /**
-         * @brief Converts a 3D point in map frame to a voxel coord. Exactly the same as Bonxai::posToCoord
-         * @param PCLPoint& point
-         * @return Bonxai::CoordT
-         */
-        Bonxai::CoordT mapPointToVoxelCoord(const PCLPoint& point);
-
-        /**
-         * @brief Converts a voxel coord to a 3D point in map frame. Exactly the same as Bonxai::coordToPos
-         * @param Bonxai::CoordT& coord
-         * @return PCLPoint
-         */
-        PCLPoint voxelCoordToMapPoint(const Bonxai::CoordT& coord);
-
-        /**
-         * @brief Convert a voxel coord to a 3D point in the map frame to the center of the voxel
-         * @param Bonxai::CoordT& coord
-         * @return PCLPoint
-         */
-        PCLPoint voxelCoordToMapCenterPoint(const Bonxai::CoordT& coord);
-
-        /**
-         * @brief COnverts a voxel coord to a chunk coordinate
-         * @param Bonxai::CoordT& coord
-         * @return CoordT
-         */
-        Bonxai::CoordT voxelCoordToChunkCoord(const Bonxai::CoordT& coord);
-
-        /**
-         * @brief Maps a chunk coordinate to the voxel coordinate, which is the back right down voxel in the map frame
-         * @param const Bonxai::CoordT& coord
-         * @return Bonxai::CoordT
-         */
-        Bonxai::CoordT chunkCoordToVoxelCoord(const Bonxai::CoordT& coord);
-
-        /**
-         * @brief Maps a 3D point in the map frame to a voxel coordinate that is relative to the voxel origin of the chunk
-         * @param const PCLPoint& point
-         * @return Bonxai::CoordT
-         */
-        Bonxai::CoordT mapFramePointToChunkFrameCoord(const PCLPoint& mP);
-        
-        /**
-         * Maps a 3D point from map frame into chunk frame
-         */
-        PCLPoint mapFramePointToChunkFramePoint(const PCLPoint& mp);
     };
 }
 
