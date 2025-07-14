@@ -61,9 +61,6 @@ private:
      */
     void cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
 
-
-    void publishMap();
-
     //Map Manager
     MapManager map_manager_;
 

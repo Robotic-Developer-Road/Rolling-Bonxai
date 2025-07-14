@@ -53,8 +53,6 @@ namespace RM
         {
             write_thread_.join();
         }
-
-        std::cout << "ChunkManager destructor called" << std::endl;
         return;
     }
 
@@ -94,7 +92,7 @@ namespace RM
         //Check if there are any read operations in progress
         if (hasPendingIO())
         {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"IO operation in progress. Skipping frame.");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger("rolling-map-node"),"IO operation in progress. Skipping frame.");
             //The entire cache is in a transient state so we return right away
             return false;
         }
@@ -122,8 +120,6 @@ namespace RM
     void ChunkManager::updateAllOccupancy(PCLPointCloud &points,PCLPoint& origin,
                                           Bonxai::CoordT& source_chunk)
     {
-        // RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"), "Inside CM::updateAllOccupancy");
-        // isAnyBad();
         using V3D = Bonxai::OccupancyMap::Vector3D;
         //Vectors to store hit or miss voxel coords
         std::vector<Bonxai::CoordT> end_point_voxels_map;
@@ -371,10 +367,10 @@ namespace RM
         Eviction Requires a ChunkKey and MapPtr
         Loading just requires a ChunKey
 
-        Workflow: Take out chunks that need to be evicted, replacing them will nullptrs
+        Workflow: Persist common chunks to the previous and current source & evict chunks that are not required --> Read/create new chunks
          */
 
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"), "Updating Cache!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("rolling-map-node"), "Updating Cache!");
         
         //Disable all the maps
         map_live_.fill(false);
@@ -383,12 +379,7 @@ namespace RM
         //Save a copy of the current source chunks
         Bonxai::CoordT current_source_chunk = this->current_source_coord_;
         //Update the source chunk store with the new source chunk
-        setSourceCoord(new_source_chunk);
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"), "Old Source Chunk: (" << 
-                           current_source_chunk.x << "," << current_source_chunk.y << "," << current_source_chunk.z << ")");
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"), "New Source Chunk: (" << 
-                           new_source_chunk.x << "," << new_source_chunk.y << "," << new_source_chunk.z << ")");
-        
+        setSourceCoord(new_source_chunk);       
         //Create a new state array
         std::array<std::pair<ChunkKey,ChunkState>,27> new_chunk_states;
         //Create the new chunks array
@@ -425,21 +416,7 @@ namespace RM
                 //Find the new chunk type of this coordinate in the new cache
                 ChunkType updated_chunk_type = getChunkType(new_source_chunk,current_chunk_coordinate);
                 //Get the target index
-                size_t updated_cache_idx = chunkTypeToIndex(updated_chunk_type);
-
-                //Can remove this whole block after debugging///////////////////////////////////////////////////////////////////////////////////////////
-                Bonxai::CoordT expected_coordinate = getChunkCoord(updated_chunk_type,new_source_chunk);
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Moving Chunk (" << 
-                                 current_chunk_coordinate.x << "," << current_chunk_coordinate.y << "," << current_chunk_coordinate.z
-                                  << ") from " << cache_idx << " to " << updated_cache_idx);
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Updated Cache Position: " << updated_cache_idx << " expects coordinate (" <<
-                                                       expected_coordinate.x << "," << expected_coordinate.y << "," << expected_coordinate.z << ")");
-                std::string debug_text1 = expected_coordinate == current_chunk_coordinate? "YES" : "NO";
-                std::string debug_text2 = new_chunk_states[updated_cache_idx].first == current_chunk_key ? "YES" : "NO";
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Is Reallocated Coordinate Correct? " << debug_text1);
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Is Reallocated Key Correct?        " << debug_text1);
-                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                
+                size_t updated_cache_idx = chunkTypeToIndex(updated_chunk_type);                
                 //Swapping the allocated map pointer in the cache from its original cache_idx to an updated_cache_idx
                 std::swap(chunks_[cache_idx],new_chunks[updated_cache_idx]);
                 //Update the state of this chunk in the new chunk_states
@@ -453,16 +430,12 @@ namespace RM
                 {
                     //There was no update. Can safely let the map go
                     chunks_[cache_idx].reset();
-                    //Check the use_count to make sure its indeed gone
-                    std::string debug_text3 = chunks_[cache_idx].use_count() == 0 ? "Destroyed" : "Still Around";
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Eviction: " << cache_idx << " Cache Use Count: " << chunks_[cache_idx].use_count() << "-->" << debug_text3);
                 }
                 else
                 {
                     //There was an update. We need to give it to the Write Queue
                     wqPush(current_chunk_key,chunks_[cache_idx]);
                     chunks_[cache_idx].reset();
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Pushed To Write Queue!");
                 }
             }
         }
@@ -482,19 +455,14 @@ namespace RM
             Bonxai::CoordT updated_chunk_coord = chunkKeyToChunkCoord(updated_chunk_key);
             //Updated Chunk State
             ChunkState updated_chunk_state = chunk_states_.at(i).second;
-            //If this guy is a neibor of the old chunk, it should have been persisted
-            if (is26neibor(current_source_chunk,updated_chunk_coord) || updated_chunk_coord == current_source_chunk)
+            //Read it if its not a neibor of the current source chunk and its not the current source chunk
+            if (!is26neibor(current_source_chunk,updated_chunk_coord) && updated_chunk_coord != current_source_chunk)
             {
-                std::string debug_text4 = chunks_[i].use_count() == 0 ? "Destroyed" : "Still Around";
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Chunk (" << updated_chunk_coord.x << "," << updated_chunk_coord.y << "," << updated_chunk_coord.z << 
-                                                                          ") Persisted with use count: " << chunks_[i].use_count() << "-->" << debug_text4);    
-            }
-            else
-            {
-                std::string debug_text5 = updated_chunk_state == ChunkState::UNSET ? "Unset" : "Set";
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Chunk (" << updated_chunk_coord.x << "," << updated_chunk_coord.y << "," << updated_chunk_coord.z <<
-                                                        ") Need to be read with state: " << debug_text5);
-                //We need to read
+                if (updated_chunk_state != ChunkState::UNSET)
+                {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger("rolling-map-node"),"This chunk update needs to be UNSET!");
+                }
+                //Read it
                 read_tasks.push_back(std::make_pair(updated_chunk_key,i));
             }
         }
@@ -502,7 +470,6 @@ namespace RM
         //Push the read tasks to the read queue
         for (auto task : read_tasks)
         {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Push Request to read key: " << task.first << " To CacheIdx: "<< task.second);
             rqPush(task.first,task.second);
         }
 
@@ -778,13 +745,11 @@ namespace RM
                 new_map = std::make_shared<Bonxai::OccupancyMap>(moption_,std::move(loaded_grid));
                 
                 infile.close();
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Read Grid from File!");
             }
             else
             {
                 //just create a fresh new map using resolutions
                 new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Created new grid!");
             }
 
             //Sanity
@@ -792,12 +757,10 @@ namespace RM
             {
                 chunks_[target_idx] = new_map;
                 chunk_states_[target_idx].second = ChunkState::CLEAN;
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Map with Key: " << key2read << " inserted into Cache Idx: " << target_idx);
             }
 
             else
             {
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"The ChunkState: " << static_cast<size_t>(chunk_states_[target_idx].second));
                 RCLCPP_ERROR_STREAM(rclcpp::get_logger("rolling-map-node"),"Something is screwed up with read task for key: " << key2read);
             }
 
@@ -841,30 +804,17 @@ namespace RM
 
     bool ChunkManager::hasPendingIO()
     {
-
+        bool all_maps_live = false;
         {
             std::lock_guard<std::mutex> l_lock(liveliness_mutex_);
             
             //If the liveliness array is not all true, this means that IO is going on
-            bool all_maps_live = std::all_of(map_live_.begin(),
+            all_maps_live = std::all_of(map_live_.begin(),
                                              map_live_.end(),
                                              [](bool b){return b;});
-
-            if (all_maps_live)
-            {
-                return false;
-            }
-
-            else
-            {
-                for (size_t i = 0 ; i < 27 ; ++i)
-                {
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Map Live: " << i << " -> " << map_live_[i]);
-                }
-                return true;
-            }
-            
+          
         }
+        return !all_maps_live;  
 
     }
 

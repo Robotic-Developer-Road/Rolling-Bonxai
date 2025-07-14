@@ -230,8 +230,6 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
 
     if (viz_free_)
     {
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"FreeVoxels: " << occupied_voxels_.size());
-
         if (did_update_happen)
         {
             map_manager_.getOccupiedVoxels(free_voxels_);
