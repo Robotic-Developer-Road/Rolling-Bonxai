@@ -138,6 +138,15 @@ namespace RM
             UNSET = 2
         };
 
+        //Chunk Metadata
+        struct Chunkmd
+        {
+            Bonxai::CoordT coord {0,0,0};
+            ChunkKey key {"_"};
+            ChunkState state {ChunkState::UNSET};
+            bool touched_once {false};
+        };
+
         /**
          * @brief Set the center coord
          * @param Bonxai::CoordT& source
@@ -334,12 +343,12 @@ namespace RM
         //Data Structures
         /////////////////
 
+        const size_t CACHE_SIZE {27};
+
         //27 sized fixed array of map pointers
         std::array<MapPtr,27> chunks_;
-        //27 sized fixed array of booleans indicating if the chunk is clean
-        std::array<std::pair<ChunkKey,ChunkState>,27> chunk_states_;
-        //Boolean values to track if a chunk was touched atleast once during a particular update. It is reset every update
-        std::array<bool,27> touched_once_;
+        //27 sized fixed array of chunk metadata structs
+        std::array<Chunkmd,27> chunks_metadata_;
         //The center coordinate
         Bonxai::CoordT current_source_coord_;
         //Flag to check if the first map has been initted
