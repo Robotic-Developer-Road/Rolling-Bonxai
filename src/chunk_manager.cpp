@@ -12,10 +12,7 @@ namespace RM
 
         //init with null pointers
         chunks_.fill(nullptr);
-
-        std::pair<ChunkKey,ChunkState> def = std::make_pair("_",ChunkState::UNSET);
-        chunk_states_.fill(def);
-
+        chunks_metadata_.fill(Chunkmd());
         map_live_.fill(false);
 
         //Set the options
@@ -33,9 +30,8 @@ namespace RM
     ChunkManager::ChunkManager()
     {
         chunks_.fill(nullptr);
-
-        std::pair<ChunkKey,ChunkState> def = std::make_pair("_",ChunkState::UNSET);
-        chunk_states_.fill(def);
+        chunks_metadata_.fill(Chunkmd());
+        map_live_.fill(false);
     }
 
     ChunkManager::~ChunkManager()
@@ -72,12 +68,12 @@ namespace RM
 
             auto ctype = indexToChunkType(i);
             auto coord = getChunkCoord(ctype,source_chunk);
-            auto key = chunkCoordToChunkKey(coord);
 
-            chunk_states_[i] = std::make_pair(key,ChunkState::CLEAN);
+            chunks_metadata_[i].coord = coord;
+            chunks_metadata_[i].key = chunkCoordToChunkKey(coord);
+            chunks_metadata_[i].state = ChunkState::CLEAN;
+            chunks_metadata_[i].touched_once = false;
         }
-        //Set the touched once array to all false
-        touched_once_.fill(false);
         //We are ready to go.
         map_live_.fill(true);
     }
@@ -192,7 +188,7 @@ namespace RM
             //mark parent chunk as dirty if its not already
             if (getChunkState(target_index) != ChunkState::DIRTY) {markDirty(target_index);}
             //This chunk was touched during the update
-            this->touched_once_[target_index] = true;
+            this->chunks_metadata_[target_index].touched_once = true;
         }
     }
 
@@ -222,7 +218,7 @@ namespace RM
             //mark the chunk as dirty if its not already dirty
             if (getChunkState(target_index) != ChunkState::DIRTY) {markDirty(target_index);}
             //This chunk was touched during the update
-            this->touched_once_[target_index] = true;
+            this->chunks_metadata_[target_index].touched_once = true;
         }
     }
 
@@ -265,7 +261,7 @@ namespace RM
                 //mark the chunk as dirty if its not already dirty
                 if (getChunkState(target_index) != ChunkState::DIRTY) {markDirty(target_index);}
                 //This chunk was touched during the update
-                this->touched_once_[target_index] = true;
+                this->chunks_metadata_[target_index].touched_once = true;
             }
             return true;
         }; // clearPointLambda
@@ -279,15 +275,14 @@ namespace RM
 
     void ChunkManager::incrementUpdateCount()
     {
-        for (size_t i = 0 ; i < this->touched_once_.size() ; ++i)
+        for (size_t i = 0 ; i < CACHE_SIZE ; ++i)
         {
-            if (touched_once_.at(i))
+            if (chunks_metadata_.at(i).touched_once)
             {
                 this->chunks_[i]->incrementUpdateCount();
             }
+            this->chunks_metadata_[i].touched_once = false;
         }
-
-        touched_once_.fill(false);
     }
 
     void ChunkManager::getAllOccupiedVoxels(PCLPointCloud& points)
@@ -300,9 +295,7 @@ namespace RM
 
         for (int i = 0 ; i < chunks_.size() ; ++i)
         {
-            auto key = chunk_states_[i].first;
-            Bonxai::CoordT cc = this->chunkKeyToChunkCoord(key);
-            Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(cc,chunk_params_.chunk_dim);
+            Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(chunks_metadata_[i].coord,chunk_params_.chunk_dim);
 
             auto visitor = [this,&cc_origin_voxel_map,&points](Bonxai::MapUtils::CellOcc &cell,const Bonxai::CoordT& coord)
             {
@@ -330,9 +323,7 @@ namespace RM
 
         for (int i = 0 ; i < chunks_.size() ; ++i)
         {
-            auto key = chunk_states_[i].first;
-            Bonxai::CoordT cc = this->chunkKeyToChunkCoord(key);
-            Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(cc,chunk_params_.chunk_dim);
+            Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(chunks_metadata_[i].coord,chunk_params_.chunk_dim);
 
             auto visitor = [this,&cc_origin_voxel_map,&points](Bonxai::MapUtils::CellOcc &cell,const Bonxai::CoordT& coord)
             {
@@ -374,67 +365,67 @@ namespace RM
         
         //Disable all the maps
         map_live_.fill(false);
-        //Reset the touches
-        touched_once_.fill(false);
         //Save a copy of the current source chunks
         Bonxai::CoordT current_source_chunk = this->current_source_coord_;
         //Update the source chunk store with the new source chunk
         setSourceCoord(new_source_chunk);       
         //Create a new state array
-        std::array<std::pair<ChunkKey,ChunkState>,27> new_chunk_states;
+        std::array<Chunkmd,27> new_chunks_md;
         //Create the new chunks array
         std::array<MapPtr,27> new_chunks;
 
         //Populate the new chunk states array with the appropriate key and UNSET state based on the new neibor
-        for (size_t i = 0 ; i < 27 ; ++i)
+        for (size_t i = 0 ; i < CACHE_SIZE ; ++i)
         {
+            //Create a new metadata object
+            Chunkmd new_chunk_md;
             //Get the chunk type enumeration
             auto chunktype = indexToChunkType(i);
             //Get the corresponding coordinate that matches the enumeration and the new source coord
-            Bonxai::CoordT chunk_coordinate_here = getChunkCoord(chunktype,new_source_chunk);
+            new_chunk_md.coord = getChunkCoord(chunktype,new_source_chunk);
             //Convert this to the corresponding Key
-            ChunkKey chunk_key_here = chunkCoordToChunkKey(chunk_coordinate_here);
+            new_chunk_md.key = chunkCoordToChunkKey(new_chunk_md.coord);
+            //Add the state
+            new_chunk_md.state = ChunkState::UNSET;
+            //reset the touch
+            new_chunk_md.touched_once = false;
             //Add the new key at that position
-            new_chunk_states[i] = std::make_pair(chunk_key_here,ChunkState::UNSET);
+            new_chunks_md[i] = new_chunk_md;
             //Create an empty map pointer at that position in the new chunks
             MapPtr empty_mptr;
             new_chunks[i] = empty_mptr;
         }
         
         //Beyond this point, we will begin mutating the chunks.
-        for (size_t cache_idx = 0 ; cache_idx < 27; ++cache_idx)
+        for (size_t cache_idx = 0 ; cache_idx < CACHE_SIZE; ++cache_idx)
         {
-            //Grab the current chunk key in the cache position
-            ChunkKey current_chunk_key = chunk_states_.at(cache_idx).first;
-            //Get the coordinate
-            Bonxai::CoordT current_chunk_coordinate = chunkKeyToChunkCoord(current_chunk_key);
-            //Get the current chunk state
-            ChunkState current_chunk_state = chunk_states_.at(cache_idx).second;
+            const Chunkmd curr_md = chunks_metadata_.at(cache_idx);
             //Check for persistence fist. Persistence will happen if current_chunk_coordinate is either the new_source_coord or a neibor of the new_source_coord
-            if (current_chunk_coordinate == new_source_chunk || is26neibor(new_source_chunk,current_chunk_coordinate))
+            if (curr_md.coord == new_source_chunk || is26neibor(new_source_chunk,curr_md.coord))
             {
                 //Find the new chunk type of this coordinate in the new cache
-                ChunkType updated_chunk_type = getChunkType(new_source_chunk,current_chunk_coordinate);
+                ChunkType updated_chunk_type = getChunkType(new_source_chunk,curr_md.coord);
                 //Get the target index
                 size_t updated_cache_idx = chunkTypeToIndex(updated_chunk_type);                
                 //Swapping the allocated map pointer in the cache from its original cache_idx to an updated_cache_idx
                 std::swap(chunks_[cache_idx],new_chunks[updated_cache_idx]);
-                //Update the state of this chunk in the new chunk_states
-                new_chunk_states[updated_cache_idx].second = current_chunk_state;
+                //Update the state of this chunk in the new chunk metadata
+                new_chunks_md[updated_cache_idx].state = curr_md.state;
                 //Update the map liveliness
                 map_live_[updated_cache_idx] = true;
             }
             else //Eviction block because the current chunk is neither the source nor a neibor. So it should not be there
             {
-                if (current_chunk_state == ChunkState::CLEAN)
+                if (curr_md.state == ChunkState::CLEAN)
                 {
                     //There was no update. Can safely let the map go
                     chunks_[cache_idx].reset();
                 }
                 else
                 {
+                    ChunkKey currkey = curr_md.key;
                     //There was an update. We need to give it to the Write Queue
-                    wqPush(current_chunk_key,chunks_[cache_idx]);
+                    wqPush(currkey,chunks_[cache_idx]);
                     chunks_[cache_idx].reset();
                 }
             }
@@ -443,27 +434,22 @@ namespace RM
         //Replace the new chunks array with the existing chunks.
         chunks_ = std::move(new_chunks);
         //Replace the new states array with the existing states
-        chunk_states_ = std::move(new_chunk_states);
+        chunks_metadata_ = std::move(new_chunks_md);
         //Create a vector for the read tasks
         std::vector<std::pair<ChunkKey,size_t>> read_tasks;
         //Loop through the updated states and chunks
         for (size_t i = 0 ; i < 27 ; ++i)
         {
-            //Get the chunk key at that coordinate
-            ChunkKey updated_chunk_key = chunk_states_.at(i).first;
-            //Get the coord
-            Bonxai::CoordT updated_chunk_coord = chunkKeyToChunkCoord(updated_chunk_key);
-            //Updated Chunk State
-            ChunkState updated_chunk_state = chunk_states_.at(i).second;
+            const Chunkmd updated_md = chunks_metadata_.at(i);
             //Read it if its not a neibor of the current source chunk and its not the current source chunk
-            if (!is26neibor(current_source_chunk,updated_chunk_coord) && updated_chunk_coord != current_source_chunk)
+            if (!is26neibor(current_source_chunk,updated_md.coord) && updated_md.coord != current_source_chunk)
             {
-                if (updated_chunk_state != ChunkState::UNSET)
+                if (updated_md.state != ChunkState::UNSET)
                 {
                     RCLCPP_ERROR_STREAM(rclcpp::get_logger("rolling-map-node"),"This chunk update needs to be UNSET!");
                 }
                 //Read it
-                read_tasks.push_back(std::make_pair(updated_chunk_key,i));
+                read_tasks.push_back(std::make_pair(updated_md.key,i));
             }
         }
 
@@ -472,7 +458,6 @@ namespace RM
         {
             rqPush(task.first,task.second);
         }
-
 
     }
 
@@ -642,46 +627,45 @@ namespace RM
 
     void ChunkManager::markClean(size_t idx)
     {
-        if (idx >= chunk_states_.max_size())
+        if (idx >= CACHE_SIZE)
         {
-            std::cout << "Invalid Mark Clean ID" << std::endl;
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("rolling-map-node"),"Invalid Mark Clean ID: " 
+            << idx << " CACHE_SIZE: " << CACHE_SIZE);
             return;
         }
-
-        chunk_states_[idx].second = ChunkState::CLEAN;
+        chunks_metadata_[idx].state = ChunkState::CLEAN;
     }
 
     void ChunkManager::markDirty(size_t idx)
     {
-        if (idx >= chunk_states_.max_size())
+        if (idx >= CACHE_SIZE)
         {
-            std::cout << "Invalid Mark Dirty ID" << std::endl;
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("rolling-map-node"),"Invalid Mark Clean ID: " 
+            << idx << " CACHE_SIZE: " << CACHE_SIZE);
             return;
         }
-
-        chunk_states_[idx].second = ChunkState::DIRTY;
+        chunks_metadata_[idx].state = ChunkState::DIRTY;
     }
 
     void ChunkManager::markUnset(size_t idx)
     {
-        if (idx >= chunk_states_.max_size())
+        if (idx >= CACHE_SIZE)
         {
-            std::cout << "Invalid Mark Unset ID" << std::endl;
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("rolling-map-node"),"Invalid Mark Clean ID: " 
+            << idx << " CACHE_SIZE: " << CACHE_SIZE);
             return;
         }
-
-        chunk_states_[idx].first = "_";
-        chunk_states_[idx].second = ChunkState::UNSET;
+        chunks_metadata_[idx].state = ChunkState::UNSET;
     }
 
     ChunkManager::ChunkState& ChunkManager::getChunkState(size_t idx)
     {
-        if (idx >= chunk_states_.max_size())
+        if (idx >= CACHE_SIZE)
         {
             std::cout << "Invalid Mark Unset ID" << std::endl;
             throw(std::runtime_error("Invalid Mark Unset ID"));
         }
-        return chunk_states_.at(idx).second;
+        return chunks_metadata_.at(idx).state;
     }
 
     void ChunkManager::rqPush(ChunkKey &key, size_t cache_index)
@@ -724,11 +708,6 @@ namespace RM
             auto chunk_path = this->chunkKeyToChunkPath(key2read);
             //Check if the chunk path exists
             bool path_exists = chunkFileExists(key2read);
-
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Working on Read Task: " << key2read);
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Target Cache Idx: " << target_idx);
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Expected Key in Cache Idx : " << chunk_states_[target_idx].first);
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Path Exists? " << path_exists);
             
             //Initialise new map
             MapPtr new_map = nullptr;
@@ -752,11 +731,10 @@ namespace RM
                 new_map = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
             }
 
-            //Sanity
-            if (chunk_states_[target_idx].second == ChunkState::UNSET)
+            if (chunks_metadata_[target_idx].state == ChunkState::UNSET)
             {
                 chunks_[target_idx] = new_map;
-                chunk_states_[target_idx].second = ChunkState::CLEAN;
+                chunks_metadata_[target_idx].state = ChunkState::CLEAN;
             }
 
             else
