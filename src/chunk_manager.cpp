@@ -433,12 +433,12 @@ namespace RM
 
         //Replace the new chunks array with the existing chunks.
         chunks_ = std::move(new_chunks);
-        //Replace the new states array with the existing states
+        //Replace the new metadata array with the existing states
         chunks_metadata_ = std::move(new_chunks_md);
         //Create a vector for the read tasks
         std::vector<std::pair<ChunkKey,size_t>> read_tasks;
         //Loop through the updated states and chunks
-        for (size_t i = 0 ; i < 27 ; ++i)
+        for (size_t i = 0 ; i < CACHE_SIZE ; ++i)
         {
             const Chunkmd updated_md = chunks_metadata_.at(i);
             //Read it if its not a neibor of the current source chunk and its not the current source chunk
