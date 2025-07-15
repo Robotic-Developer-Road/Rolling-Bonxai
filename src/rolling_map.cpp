@@ -22,6 +22,10 @@ rclcpp::Node("rolling_map_node",options)
     {
         this->occupied_voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/occupied_voxel_centers", qos);
     }
+    if (this->viz_chunks_)
+    {
+        this->chunk_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/chunks", qos);
+    }
 
     //Setup the TF2 objects
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -242,6 +246,15 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
         free_voxel_pub_->publish(cloud_free_msg);
     }
 
+    if (viz_chunks_)
+    {
+        if (did_update_happen)
+        {
+            map_manager_.getChunkMetadata(chunk_info_);
+        }
+        publishChunks();
+    }
+
     const double end_time = this->get_clock()->now().seconds();
     double elapsed_s = end_time - start_time;
     
@@ -251,6 +264,66 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     // RCLCPP_INFO_STREAM(this->get_logger(), "Callback Completion Time: " << elapsed_s           << "s\n"
     //                                     << "Total Callback Hits: "      << num_callback_hits_  << "\n"
     //                                     << "Average Completion Time: "  << elapsed_avg_time_s_ << "s\n");
+}
+
+
+void RollingMapNode::publishChunks()
+{
+    visualization_msgs::msg::MarkerArray marker_array;
+    rclcpp::Time now = this->get_clock()->now();
+    double cube_size = map_params_.resolution * chunk_params_.chunk_dim;
+    for (size_t i = 0; i < 27; ++i) 
+    {
+        const auto& cube = chunk_info_[i];
+
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = "map";
+        marker.header.stamp = now;
+        marker.ns = "chunks";
+        marker.id = static_cast<int>(i);  // Must be unique per marker
+        marker.type = visualization_msgs::msg::Marker::CUBE;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+
+        // Convert from bottom-right-back to center
+        marker.pose.position.x = cube.first.x + cube_size / 2.0;
+        marker.pose.position.y = cube.first.y + cube_size / 2.0;
+        marker.pose.position.z = cube.first.z + cube_size / 2.0;
+
+        marker.pose.orientation.w = 1.0; // No rotation
+
+        marker.scale.x = cube_size;
+        marker.scale.y = cube_size;
+        marker.scale.z = cube_size;
+
+        // Color assignment
+        switch (cube.second) 
+        {
+            case 0: // Green
+            marker.color.r = 0.0;
+            marker.color.g = 1.0;
+            marker.color.b = 0.0;
+            marker.color.a = 0.1;
+            break;
+            case 1: // Blue
+            marker.color.r = 0.0;
+            marker.color.g = 0.0;
+            marker.color.b = 1.0;
+            marker.color.a = 0.1;
+            break;
+            case 2: // Black
+            default:
+            marker.color.r = 0.0;
+            marker.color.g = 0.0;
+            marker.color.b = 0.0;
+            marker.color.a = 0.1;
+            break;
+        }
+
+        marker.lifetime = rclcpp::Duration(0, 0); // 0 means infinite
+        marker_array.markers.push_back(marker);
+    }
+
+    chunk_pub_->publish(marker_array);
 }
 
 } // namespace RM

@@ -98,6 +98,12 @@ namespace RM
          */
         void getAllFreeVoxels(PCLPointCloud& points);
 
+        /**
+         * @brief Get a set of the chunk states of the current set of chunks
+         * @return std::array<ChunkState,27> const reference
+         */
+        std::array<std::pair<PCLPoint,uint8_t>,27> getChunkMeta() const;
+
     private:
         enum class ChunkType : size_t
         {
