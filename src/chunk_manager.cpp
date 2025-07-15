@@ -60,7 +60,7 @@ namespace RM
     void ChunkManager::initFirstChunks(Bonxai::CoordT &source_chunk)
     {
         setSourceCoord(source_chunk);
-        for (size_t i = 0; i < 27; ++i)
+        for (size_t i = 0 ; i < CACHE_SIZE; ++i)
         {
             //Make a new map
             MapPtr mptr = std::make_shared<Bonxai::OccupancyMap>(map_params_.resolution,moption_);
@@ -293,7 +293,7 @@ namespace RM
         }
         points.clear();
 
-        for (int i = 0 ; i < chunks_.size() ; ++i)
+        for (size_t i = 0 ; i < CACHE_SIZE ; ++i)
         {
             Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(chunks_metadata_[i].coord,chunk_params_.chunk_dim);
 
@@ -321,7 +321,7 @@ namespace RM
 
         points.clear();
 
-        for (int i = 0 ; i < chunks_.size() ; ++i)
+        for (size_t i = 0 ; i < CACHE_SIZE ; ++i)
         {
             Bonxai::CoordT cc_origin_voxel_map = utils::chunkCoordToVoxelCoord(chunks_metadata_[i].coord,chunk_params_.chunk_dim);
 
@@ -672,7 +672,6 @@ namespace RM
     {
         {
             std::lock_guard<std::mutex> lock(read_mutex_);
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"Push Request to read key: " << key << " CacheIdx: "<< cache_index);
             read_queue_.emplace(key,cache_index);
             rq_size_ ++;
         }
