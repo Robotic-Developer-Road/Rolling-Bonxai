@@ -40,6 +40,11 @@ def launch_setup(context, *args, **kwargs):
     if not os.path.exists(chunk_folder):
         raise RuntimeError(f"Chunk folder does not exist: {chunk_folder}")
     
+    #Nuke everything in the chunk folder with an extension.chunk
+    for file in os.listdir(chunk_folder):
+        if file.endswith('.chunk'):
+            os.remove(os.path.join(chunk_folder, file))
+    
 
     rolling_map_node_debug = Node(
         package=package_name,
