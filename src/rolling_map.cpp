@@ -1,4 +1,4 @@
-#include "rolling_map/rolling_map.h"
+#include "rolling_map/map_server.h"
 
 namespace RM
 {
@@ -230,8 +230,6 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
 
     if (viz_free_)
     {
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("rolling-map-node"),"FreeVoxels: " << occupied_voxels_.size());
-
         if (did_update_happen)
         {
             map_manager_.getOccupiedVoxels(free_voxels_);
@@ -253,12 +251,6 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
     // RCLCPP_INFO_STREAM(this->get_logger(), "Callback Completion Time: " << elapsed_s           << "s\n"
     //                                     << "Total Callback Hits: "      << num_callback_hits_  << "\n"
     //                                     << "Average Completion Time: "  << elapsed_avg_time_s_ << "s\n");
-}
-
-
-void RollingMapNode::publishMap()
-{
-    return;
 }
 
 } // namespace RM

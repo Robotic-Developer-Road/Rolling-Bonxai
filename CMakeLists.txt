@@ -61,6 +61,9 @@ target_link_libraries(bonxai_map
 )
 
 # ====================================================
+# ====================================================
+
+# ====================================================
 
 # ====================================================
 include_directories(
@@ -72,6 +75,7 @@ add_executable(rolling_map_node
   src/chunk_manager.cpp
   src/rolling_map.cpp
   src/rolling_map_node.cpp
+  src/utils.cpp
 )
 
 target_include_directories(rolling_map_node PUBLIC

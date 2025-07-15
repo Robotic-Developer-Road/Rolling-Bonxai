@@ -1,5 +1,5 @@
-#ifndef ROLLING_MAP_H
-#define ROLLING_MAP_H
+#ifndef ROLLING_MAP__MAP_SERVER_H
+#define ROLLING_MAP__MAP_SERVER_H
 
 #include <pcl/common/transforms.h>
 #include <pcl/filters/statistical_outlier_removal.h>
@@ -17,7 +17,7 @@
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "message_filters/subscriber.h"
 
-#include "rolling_map/rolling_map_params.h"
+#include "rolling_map/map_params.h"
 #include "rolling_map/map_manager.h"
 
 #include <mutex>
@@ -61,9 +61,6 @@ private:
      */
     void cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
 
-
-    void publishMap();
-
     //Map Manager
     MapManager map_manager_;
 
@@ -105,4 +102,4 @@ private:
     PCLPointCloud free_voxels_;
 };
 }
-#endif //ROLLING_MAP_H
+#endif //ROLLING_MAP__ROLLING_MAP
