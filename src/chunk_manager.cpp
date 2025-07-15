@@ -803,4 +803,31 @@ namespace RM
                 std::abs(delta.y)<=1 &&
                 std::abs(delta.z)<=1 && !(delta.x==0 && delta.y==0 && delta.z==0));
     }
+
+    std::array<std::pair<ChunkManager::PCLPoint,uint8_t>,27> ChunkManager::getChunkMeta() const
+    {
+        std::array<std::pair<ChunkManager::PCLPoint,uint8_t>,27> ret;
+        for (size_t i = 0; i < 27; i++)
+        {
+            auto chunk_voxel_origin = utils::chunkCoordToVoxelCoord(chunks_metadata_[i].coord,chunk_params_.chunk_dim);
+            auto chunk_point_origin = utils::voxelCoordToMapPoint(chunk_voxel_origin,map_params_.resolution);
+            uint8_t color;
+            if (chunks_metadata_[i].state == ChunkState::DIRTY)
+            {
+                color = 0;
+            }
+            else if (chunks_metadata_[i].state == ChunkState::CLEAN)
+            {
+                color = 1;
+            }
+            else
+            {
+                color = 2;
+            }
+
+            ret[i] = {chunk_point_origin,color};
+        }
+
+        return ret;
+    }
 }

@@ -59,6 +59,13 @@ namespace RM
          */
         void getOccupiedVoxels(PCLPointCloud& points);
 
+        /**
+         * @brief Get the chunk metadata
+         * @param std::array<pair<PCLPoint,uint8_t>,27>& metadata
+         * @return void
+         */
+        void getChunkMetadata(std::array<std::pair<PCLPoint,uint8_t>,27>& metadata);
+
     private:
 
         //Chunk Manager

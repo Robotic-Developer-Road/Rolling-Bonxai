@@ -52,4 +52,10 @@ namespace RM
         chunk_manager_->getAllOccupiedVoxels(points);
     }
 
+    void MapManager::getChunkMetadata(std::array<std::pair<PCLPoint,uint8_t>,27>& metadata)
+    {
+        auto meta = chunk_manager_->getChunkMeta();
+        metadata = std::move(meta);
+    }
+
 }// namespace RM

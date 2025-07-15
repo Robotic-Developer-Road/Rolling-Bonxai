@@ -9,6 +9,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 #include "pcl_conversions/pcl_conversions.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/create_timer_ros.h"
@@ -61,6 +63,11 @@ private:
      */
     void cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
 
+    /**
+     * @brief Method wrapping steps to publish chunks metadata
+     */
+    void publishChunks();
+
     //Map Manager
     MapManager map_manager_;
 
@@ -77,6 +84,7 @@ private:
     //Publisher
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr free_voxel_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr occupied_voxel_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr chunk_pub_;
 
     //TODO: Visualization Publisher but can do later
 
@@ -100,6 +108,7 @@ private:
     //Data Structure to points
     PCLPointCloud occupied_voxels_;
     PCLPointCloud free_voxels_;
+    std::array<std::pair<PCLPoint,uint8_t>,27> chunk_info_;
 };
 }
 #endif //ROLLING_MAP__ROLLING_MAP
