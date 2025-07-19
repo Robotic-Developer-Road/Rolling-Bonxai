@@ -7,6 +7,7 @@
 #include <pcl/segmentation/sac_segmentation.h>
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/u_int64_multi_array.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "visualization_msgs/msg/marker.hpp"
@@ -85,6 +86,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr free_voxel_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr occupied_voxel_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr chunk_pub_;
+    rclcpp::Publisher<std_msgs::msg::UInt64MultiArray>::SharedPtr usage_pub_;
 
     //TODO: Visualization Publisher but can do later
 
@@ -99,6 +101,7 @@ private:
     bool viz_occupied_ {true};
     bool viz_free_ {false};
     bool viz_chunks_ {false};
+    bool viz_usage_ {false};
 
     //Profiling for callback
     int num_callback_hits_ {0};
@@ -109,6 +112,7 @@ private:
     PCLPointCloud occupied_voxels_;
     PCLPointCloud free_voxels_;
     std::array<std::pair<PCLPoint,uint8_t>,27> chunk_info_;
+    std::array<std::pair<size_t,size_t>,27> usage_info_;
 };
 }
 #endif //ROLLING_MAP__ROLLING_MAP

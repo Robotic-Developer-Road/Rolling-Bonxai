@@ -26,6 +26,10 @@ rclcpp::Node("rolling_map_node",options)
     {
         this->chunk_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/chunks", qos);
     }
+    if (this->viz_usage_)
+    {
+        this->usage_pub_ = this->create_publisher<std_msgs::msg::UInt64MultiArray>("/usage", qos);
+    }
 
     //Setup the TF2 objects
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -97,6 +101,7 @@ void RollingMapNode::declareParameters()
     this->declare_parameter("viz_occupied",true);
     this->declare_parameter("viz_free",false);
     this->declare_parameter("viz_chunks",false);
+    this->declare_parameter("viz_usage",false);
 }   
 
 void RollingMapNode::loadParameters()
@@ -130,6 +135,7 @@ void RollingMapNode::loadParameters()
     this->viz_occupied_ = this->get_parameter("viz_occupied").as_bool();
     this->viz_free_     = this->get_parameter("viz_free").as_bool();
     this->viz_chunks_   = this->get_parameter("viz_chunks").as_bool();
+    this->viz_usage_    = this->get_parameter("viz_usage").as_bool();
 }
 
 void RollingMapNode::printParameters()
@@ -253,6 +259,26 @@ void RollingMapNode::cloudCallback(const sensor_msgs::msg::PointCloud2::ConstSha
             map_manager_.getChunkMetadata(chunk_info_);
         }
         publishChunks();
+    }
+
+    if (viz_usage_)
+    {
+        if (did_update_happen)
+        {
+            map_manager_.getUsageStats(usage_info_);
+        }
+        size_t total_active_cells {0};
+        size_t total_memory_bytes {0};
+
+        for (const auto& [active_cells,memory_bytes] : usage_info_)
+        {
+            total_active_cells += active_cells;
+            total_memory_bytes += memory_bytes;
+        }
+
+        std_msgs::msg::UInt64MultiArray usage_msg;
+        usage_msg.data = {total_active_cells,total_memory_bytes};
+        usage_pub_->publish(usage_msg);
     }
 
     const double end_time = this->get_clock()->now().seconds();

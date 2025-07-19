@@ -66,6 +66,13 @@ namespace RM
          */
         void getChunkMetadata(std::array<std::pair<PCLPoint,uint8_t>,27>& metadata);
 
+        /**
+         * @brief Get the usage statistics of the map in memory
+         * @param std::array<std::pair<size_t,size_t>,27>& stats
+         * @return void
+         */
+        void getUsageStats(std::array<std::pair<size_t,size_t>,27>& stats);
+
     private:
 
         //Chunk Manager

@@ -336,7 +336,6 @@ namespace RM
             };
             chunks_[i] -> getGrid().forEachCell(visitor); 
         }
-        
     }
 
     void ChunkManager::updateCache(Bonxai::CoordT& new_source_chunk)
@@ -807,7 +806,7 @@ namespace RM
     std::array<std::pair<ChunkManager::PCLPoint,uint8_t>,27> ChunkManager::getChunkMeta() const
     {
         std::array<std::pair<ChunkManager::PCLPoint,uint8_t>,27> ret;
-        for (size_t i = 0; i < 27; i++)
+        for (size_t i = 0; i < CACHE_SIZE; i++)
         {
             auto chunk_voxel_origin = utils::chunkCoordToVoxelCoord(chunks_metadata_[i].coord,chunk_params_.chunk_dim);
             auto chunk_point_origin = utils::voxelCoordToMapPoint(chunk_voxel_origin,map_params_.resolution);
@@ -829,5 +828,18 @@ namespace RM
         }
 
         return ret;
+    }
+
+    std::array<std::pair<size_t,size_t>,27> ChunkManager::getUsageStats() const
+    {
+        std::array<std::pair<size_t,size_t>,27> usage;
+
+        for (size_t i = 0 ; i < CACHE_SIZE ; ++i)
+        {
+            usage[i] = {chunks_[i]->getActiveCellCount(),
+                        chunks_[i]->getMemoryUsage()};
+        }
+
+        return usage;
     }
 }

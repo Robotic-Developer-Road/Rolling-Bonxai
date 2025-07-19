@@ -104,6 +104,12 @@ namespace RM
          */
         std::array<std::pair<PCLPoint,uint8_t>,27> getChunkMeta() const;
 
+        /**
+         * @brief Get the usage statistics of the map in memory
+         * @return std::array<std::pair<size_t,size_t>,27>
+         */
+        std::array<std::pair<size_t,size_t>,27> getUsageStats() const;
+
     private:
         enum class ChunkType : size_t
         {

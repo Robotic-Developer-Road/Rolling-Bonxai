@@ -88,6 +88,16 @@ namespace Bonxai
         return options_;
     }
 
+    size_t OccupancyMap::getActiveCellCount() const
+    {
+        return grid_.activeCellsCount();
+    }
+
+    size_t OccupancyMap::getMemoryUsage() const
+    {
+        return grid_.memUsage();
+    }
+
     void OccupancyMap::setOptions(MapUtils::OccupancyOptions& options)
     {
         this->options_ = options;

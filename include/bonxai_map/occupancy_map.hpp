@@ -194,6 +194,18 @@ namespace Bonxai
         [[nodiscard]] const MapUtils::OccupancyOptions& getOptions() const;
 
         /**
+         * @brief Get the number of active cell count of the grid
+         * @return size_t
+         */
+        [[nodiscard]] size_t getActiveCellCount() const;
+
+        /**
+         * @brief Get the memory usage of the grid
+         * @return size_t in bytes
+         */
+        [[nodiscard]] size_t getMemoryUsage() const;
+
+        /**
          * @brief Set the Options object
          * @param MapUtils::OccupancyOptions& options
          */

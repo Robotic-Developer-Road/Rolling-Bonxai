@@ -58,4 +58,10 @@ namespace RM
         metadata = std::move(meta);
     }
 
+    void MapManager::getUsageStats(std::array<std::pair<size_t,size_t>,27>& stats)
+    {
+        auto usagestats = chunk_manager_->getUsageStats();
+        stats = std::move(usagestats);
+    }
+
 }// namespace RM

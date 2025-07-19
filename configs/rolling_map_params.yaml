@@ -21,3 +21,4 @@ use_sor_filter: false
 viz_occupied: true
 viz_free: false
 viz_chunks: true
+viz_usage: true
