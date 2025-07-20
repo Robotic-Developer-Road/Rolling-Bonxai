@@ -137,6 +137,10 @@ install(DIRECTORY configs
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(DIRECTORY rviz
+  DESTINATION share/${PROJECT_NAME}
+)
+
 # ====================================================
 # ament exports
 ament_export_targets(bonxai_targets)
