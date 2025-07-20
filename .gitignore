@@ -54,5 +54,6 @@ CATKIN_IGNORE
 chunks/
 !chunks/.gitkeep
 
+!configs/default_params.yaml
 configs/
-!configs/rolling_map_params.yaml
+
