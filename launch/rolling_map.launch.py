@@ -1,15 +1,17 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 import os
 import yaml
+import datetime
 
 def launch_setup(context, *args, **kwargs):
     param_file_input = LaunchConfiguration('param_file').perform(context)
     dbg_flag = LaunchConfiguration('debug').perform(context)
+    record_flag = LaunchConfiguration('record').perform(context)
 
     # Ensure .yaml extension (do not allow .yml)
     if param_file_input.endswith('.yml'):
@@ -45,6 +47,7 @@ def launch_setup(context, *args, **kwargs):
         if file.endswith('.chunk'):
             os.remove(os.path.join(chunk_folder, file))
     
+    funcs = []
 
     rolling_map_node_debug = Node(
         package=package_name,
@@ -64,10 +67,12 @@ def launch_setup(context, *args, **kwargs):
         remappings=[('/cloud_in', '/zed/zed_node/point_cloud/cloud_registered')])
     
     if dbg_flag == 'true':
-        return [rolling_map_node_debug]
+        funcs.append(rolling_map_node_debug)
     
     else:
-        return [rolling_map_node]
+        funcs.append(rolling_map_node)
+
+    return funcs
 
 
 
@@ -82,6 +87,11 @@ def generate_launch_description():
             'debug',
             default_value='false',
             description='Launch node under gdbserver for debugging'
+        ),
+        DeclareLaunchArgument(
+            'record',
+            default_value='false',
+            description='Records usage statistics'
         ),
         OpaqueFunction(function=launch_setup)
     ])
