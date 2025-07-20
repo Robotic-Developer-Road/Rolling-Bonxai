@@ -108,7 +108,7 @@ graph TD;
     D -->|no| F["**chunk_manager.cpp**<br>ChunkManager::<br>updateChunks()"]
     F --> G["**chunk_manager.cpp**<br>ChunkManager::<br>updateAllOccupancy()"]
     G --> H{"ifNewSource"}
-    H -->|yes|; I["**chunk_manager.cpp**<br>ChunkManager::<br>updateCache()"]
+    H -->|yes| I["**chunk_manager.cpp**<br>ChunkManager::<br>updateCache()"]
 ```
 
 ## Chunk Cache
