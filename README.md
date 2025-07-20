@@ -165,11 +165,11 @@ Now, we have removed chunks that need to be evicted or reordered chunks that nee
 - Create new map if it doesnt exist in disc using `ChunkManager::readWorker()`
 
 ## Whats Next
-- [] Refactor and code cleanup (priority!)
-- [] Explore better ways to do async IO for a single producer multiple consumer (readerWorker,writeWorker) model
-- [] Eviction logic based on memory usage and active cells
-- [] ROS 2 Service to get occupied voxels in memory
-- [] ROS 2 Service to query serialized and saved chunks to get occupied voxels
-- [] Improve `ChunkManager::~ChunkManager` to dump all dirty chunks currently in memory to disc
+- [ ] Refactor and code cleanup (priority!)
+- [ ] Explore better ways to do async IO for a single producer multiple consumer (readerWorker,writeWorker) model
+- [ ] Eviction logic based on memory usage and active cells
+- [ ] ROS 2 Service to get occupied voxels in memory
+- [ ] ROS 2 Service to query serialized and saved chunks to get occupied voxels
+- [ ] Improve `ChunkManager::~ChunkManager` to dump all dirty chunks currently in memory to disc
 
 
