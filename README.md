@@ -101,14 +101,14 @@ Below are the configurable parameters for running the **Rolling-Bonxai** mapping
 
 ```mermaid
 graph TD;
-    A["**rolling_map_node.cpp**<br>rclcpp::spin<br>(RollingMapNode)"] --> B["**rolling_map.cpp**<br>RollingMapNode::<br>cloudCallback()"];
-    B --> C["**map_manager.cpp**<br>MapManager::<br>updateMap(...)"];
-    C --> D{"ifFirstUpdate"};
-    D -->|yes|; E["**chunk_manager.cpp**<br>ChunkManager::<br>initFirstChunks()"];
-    D -->|no| F["**chunk_manager.cpp**<br>ChunkManager::<br>updateChunks()"];
-    F --> G["**chunk_manager.cpp**<br>ChunkManager::<br>updateAllOccupancy()"];
-    G --> H{"ifNewSource"};
-    H -->|yes|; I["**chunk_manager.cpp**<br>ChunkManager::<br>updateCache()"];
+    A["**rolling_map_node.cpp**<br>rclcpp::spin<br>(RollingMapNode)"] --> B["**rolling_map.cpp**<br>RollingMapNode::<br>cloudCallback()"]
+    B --> C["**map_manager.cpp**<br>MapManager::<br>updateMap(...)"]
+    C --> D{"ifFirstUpdate"}
+    D -->|yes|; E["**chunk_manager.cpp**<br>ChunkManager::<br>initFirstChunks()"]
+    D -->|no| F["**chunk_manager.cpp**<br>ChunkManager::<br>updateChunks()"]
+    F --> G["**chunk_manager.cpp**<br>ChunkManager::<br>updateAllOccupancy()"]
+    G --> H{"ifNewSource"}
+    H -->|yes|; I["**chunk_manager.cpp**<br>ChunkManager::<br>updateCache()"]
 ```
 
 ## Chunk Cache
