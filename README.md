@@ -1,8 +1,8 @@
 # Rolling-Bonxai  
-**Rolling-Bonxai** is a C++ 17 implementation built atop Bonxai:https://github.com/facontidavide/Bonxai. **Rolling Bonxai** maintains a user defined local map that **rolls** with the robot. Unused parts of the maps are serialized and saved to disk and loaded when required. The underlying Bonxai library implements a compact hierarchical data structure that can store and manipulate volumetric data, discretized as Voxel Grids in a manner that is both **sparse** and **unbounded**.
+**Rolling-Bonxai** is a C++ 17 implementation built on Bonxai:https://github.com/facontidavide/Bonxai. **Rolling Bonxai** maintains a user defined local map that **rolls** with the robot. Unused parts of the maps are serialized and saved to disk and loaded when required. The underlying Bonxai library implements a compact hierarchical data structure that can store and manipulate volumetric data, discretized as Voxel Grids in a manner that is both **sparse** and **unbounded**.
 
 ## Motivation
-Bonxai is a lightweight Voxel Grid implementation, as seen from the benchmarks on the original repository. However, memory will still be a bottleneck as resource constrained robots (like drones) often have to map and navigate in very large areas. In these large areas, **the robot will not need other parts of the map besides some local area to do path planning/local planning**. Therefore, storing parts of the map in memory is wasteful, especially when considering other memory intensive tasks like running vision models.
+Bonxai is a lightweight Voxel Grid implementation, as seen from the benchmarks on the original repository. However, memory will still be a bottleneck as resource constrained robots (like drones) often have to map and navigate in very large areas. In these large areas, **the robot will likely not need other parts of the map besides some local area to do path planning/local planning**. Therefore, these storing unnecessary parts of the map in memory is wasteful, especially when considering other memory intensive tasks like running vision models.
 
 To this end, **Rolling Bonxai** implements a chunking system (like in games) comprising of *NxNxN* voxels each. Each chunk is a `Bonxai::OccupancyGrid` that can be loaded/created or offloaded depending on the robot's position.
 
@@ -17,12 +17,12 @@ Full Video Here: https://youtu.be/gStI7W-x3mM
 ![Rolling Map Demo 2](docs/chunk_retrieval.gif)
 Full Video Here: https://youtu.be/h4DjMLnnrf4
 
-**Chunks that have been mapped before but not currently in memory are deserialized and loaded into memory** depending on position. **In the short interim period where chunk retrival (an io process) is in progress, they are Black.**
+**Chunks that have been mapped before but not currently in memory are deserialized and loaded into memory** depending on position. **In the short interim period where chunk retrieval (an io process) is in progress, they are Black.**
 
 ## Using Rolling-Bonxai
 ### Setup
 1. Pull in Rolling-Bonxai repo into your ROS 2 workspace
-2. Build it using `colcon build  --cmake-args     -DCMAKE_BUILD_TYPE=Release` preferably
+2. Build it using `colcon build  --cmake-args -DCMAKE_BUILD_TYPE=Release` preferably
 3. Setup the configs (see below)
 4. Launch your camera. Make sure it has a valid TF (from map - odom - baselink)
 5. `Inside rolling_map.launch.py`, change the remapping of the /cloud_in topic to the topic where your pointcloud is produced.
