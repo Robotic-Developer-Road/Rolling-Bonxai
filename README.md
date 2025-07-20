@@ -9,12 +9,14 @@ To this end, **Rolling Bonxai** implements a chunking system (like in games) com
 ## Rolling-Bonxai In Action
 ### 1. Position-based chunk eviction
 ![Rolling Map Demo 1](docs/forward_mapping.gif)
+
 Full Video Here: https://youtu.be/gStI7W-x3mM
 
 **Green and Blue semi-transparent cubes are "Dirty" and "Clean" chunks**. Dirty chunks are those that have been updated since the last time it was loaded into memory, while clean ones have not. Chunks that contain voxels are dirty. As the sensor moves, chunks are evicted based on some **policy**. In this case, it is a position based policy, where **chunks that are not one of the 26 neibors of the current chunk are evicted from memory**.
 
 ### 2. Position-based chunk loading from disc
 ![Rolling Map Demo 2](docs/chunk_retrieval.gif)
+
 Full Video Here: https://youtu.be/h4DjMLnnrf4
 
 **Chunks that have been mapped before but not currently in memory are deserialized and loaded into memory** depending on position. **In the short interim period where chunk retrieval (an io process) is in progress, they are Black.** In the above video, the sensor is moving in the opposite direction to where it is facing. As its position changes, its chunk coordinate changes, resulting in chunks it has seen before being loaded into memory.
