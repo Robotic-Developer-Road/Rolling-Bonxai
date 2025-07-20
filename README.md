@@ -100,7 +100,7 @@ Below are the configurable parameters for running the **Rolling-Bonxai** mapping
 ## Code Hot Paths
 
 ```mermaid
-graph TD
+graph TD;
     A["**rolling_map_node.cpp**<br>rclcpp::spin<br>(RollingMapNode)"] --> B["**rolling_map.cpp**<br>RollingMapNode::<br>cloudCallback()"]
     B --> C["**map_manager.cpp**<br>MapManager::<br>updateMap(...)"]
     C --> D{"ifFirstUpdate"}
