@@ -54,6 +54,7 @@ CATKIN_IGNORE
 chunks/
 !chunks/.gitkeep
 
+!configs/.gitkeep
 !configs/default_params.yaml
-configs/
+
 
