@@ -17,7 +17,7 @@ Full Video Here: https://youtu.be/gStI7W-x3mM
 ![Rolling Map Demo 2](docs/chunk_retrieval.gif)
 Full Video Here: https://youtu.be/h4DjMLnnrf4
 
-**Chunks that have been mapped before but not currently in memory are deserialized and loaded into memory** depending on position. **In the short interim period where chunk retrieval (an io process) is in progress, they are Black.**
+**Chunks that have been mapped before but not currently in memory are deserialized and loaded into memory** depending on position. **In the short interim period where chunk retrieval (an io process) is in progress, they are Black.** In the above video, the sensor is moving in the opposite direction to where it is facing. As its position changes, its chunk coordinate changes, resulting in chunks it has seen before being loaded into memory.
 
 ## Using Rolling-Bonxai
 ### Setup
