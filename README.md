@@ -1,4 +1,5 @@
-# Rolling-Bonxai  
+# Rolling-Bonxai
+**Work in Progress, expect changes over the coming weeks! This will likely be merged with Bonxai in the future.**  
 **Rolling-Bonxai** is a C++ 17 implementation built on Bonxai:https://github.com/facontidavide/Bonxai. **Rolling Bonxai** maintains a user defined local map that **rolls** with the robot. Unused parts of the maps are serialized and saved to disk and loaded when required. The underlying Bonxai library implements a compact hierarchical data structure that can store and manipulate volumetric data, discretized as Voxel Grids in a manner that is both **sparse** and **unbounded**. Star this repo if you found this useful/interesting :)
 
 ## Motivation
