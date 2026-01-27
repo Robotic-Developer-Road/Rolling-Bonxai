@@ -58,3 +58,4 @@ chunks/
 !configs/default_params.yaml
 
 archive/
+private_docs/
