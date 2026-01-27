@@ -114,9 +114,9 @@ install(
   OPTIONAL
 )
 
-# Install config files
+# Install params files
 install(
-  DIRECTORY config
+  DIRECTORY params
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL
 )
