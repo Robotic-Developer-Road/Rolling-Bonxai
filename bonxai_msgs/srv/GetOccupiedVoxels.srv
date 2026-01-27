@@ -12,3 +12,5 @@ uint64 occupied_count
 uint64 total_active_cells
 float32 occupancy_ratio  # occupied / (occupied + free)
 float32 memory_mb
+
+bool success

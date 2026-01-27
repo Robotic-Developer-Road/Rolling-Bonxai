@@ -40,14 +40,13 @@ struct BonxaiParams
 
   double occupancy_min_z{0.0};
   double occupancy_max_z{0.0};
+  double occupancy_threshold{0.50};
 
   double sensor_max_range{0.0};
   double sensor_hit{0.0};
   double sensor_miss{0.0};
   double sensor_min{0.0};
   double sensor_max{0.0};
-
-  bool latch{false};
   
   // Cleanup
   double cleanup_interval_sec{300.0};  // 5 minutes
@@ -99,6 +98,9 @@ private:
 
   // Parameters
   BonxaiParams params_;
+
+  // Flags
+  bool updated_map_once_{false};
 
   // Occupancy map
   std::unique_ptr<Bonxai::OccupancyMap> occupancy_map_;

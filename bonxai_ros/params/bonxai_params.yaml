@@ -6,6 +6,7 @@ bonxai_server_node:
 
     occupancy_min_z: -100.0
     occupancy_max_z: 100.0
+    occupancy_threshold: 0.50
 
     sensor_model:
       max_range: -1.0
@@ -14,9 +15,10 @@ bonxai_server_node:
       min: 0.12
       max: 0.97
 
+    server:
+      cleanup_interval_sec: 300.0
+
     stats:
       enable_stats: true
       quick_stats: true
       publish_rate: 1.0 #Hz
-
-    latch: false

@@ -21,6 +21,7 @@ BonxaiServer::BonxaiServer(const rclcpp::NodeOptions& options)
   occ_options.prob_miss_log = Bonxai::Occupancy::logods(params_.sensor_miss);
   occ_options.clamp_min_log = Bonxai::Occupancy::logods(params_.sensor_min);
   occ_options.clamp_max_log = Bonxai::Occupancy::logods(params_.sensor_max);
+  occ_options.occupancy_threshold_log = Bonxai::Occupancy::logods(params_.occupancy_threshold);
   
   occupancy_map_ = std::make_unique<Bonxai::OccupancyMap>(params_.resolution, occ_options);
   
@@ -58,6 +59,10 @@ void BonxaiServer::load_parameters()
     
   params_.occupancy_max_z =
     this->declare_parameter<double>("occupancy_max_z", 2.0);
+
+  // --- Occupancy Threshold ---
+  params_.occupancy_threshold =
+    this->declare_parameter<double>("occupancy_threshold", 0.50);
   
   // --- Sensor model parameters ---
   params_.sensor_max_range =
@@ -75,14 +80,11 @@ void BonxaiServer::load_parameters()
   params_.sensor_max =
     this->declare_parameter<double>("sensor_model.max", 0.97);
   
-  // --- Misc ---
-  params_.latch =
-    this->declare_parameter<bool>("latch", false);
-    
+  // --- Server ---
   params_.cleanup_interval_sec =
-    this->declare_parameter<double>("cleanup_interval_sec", 300.0);
+    this->declare_parameter<double>("server.cleanup_interval_sec", 300.0);
   
-  // --- stats.* ---
+  // --- Statostocs ---
   params_.enable_stats =
     this->declare_parameter<bool>("stats.enable_stats", true);
     
@@ -99,16 +101,17 @@ void BonxaiServer::load_parameters()
     "\n  base_frame_id=%s"
     "\n  topic_in=%s"
     "\n  occupancy_z=[%.2f, %.2f]"
+    "\n  occupancy_thresh = %.2f"
     "\n  sensor(hit=%.2f miss=%.2f min=%.2f max=%.2f range=%.2f)"
     "\n  cleanup_interval=%.1fs"
-    "\n  stats(enabled=%s quick=%s rate=%.1fHz)"
-    "\n  latch=%s",
+    "\n  stats(enabled=%s quick=%s rate=%.1fHz)",
     params_.resolution,
     params_.frame_id.c_str(),
     params_.base_frame_id.c_str(),
     params_.topic_in.c_str(),
     params_.occupancy_min_z,
     params_.occupancy_max_z,
+    params_.occupancy_threshold,
     params_.sensor_hit,
     params_.sensor_miss,
     params_.sensor_min,
@@ -117,8 +120,7 @@ void BonxaiServer::load_parameters()
     params_.cleanup_interval_sec,
     params_.enable_stats ? "true" : "false",
     params_.quick_stats ? "true" : "false",
-    params_.stats_publish_rate,
-    params_.latch ? "true" : "false");
+    params_.stats_publish_rate);
 }
 
 void BonxaiServer::init_tf()
@@ -138,9 +140,9 @@ void BonxaiServer::init_publishers()
   // Create stats publisher if enabled
   if (params_.enable_stats) {
     stats_publisher_ = this->create_publisher<bonxai_msgs::msg::OccupancyMapStats>(
-      "~/occupancy_stats",
+      "/bonxai/occupancy_stats",
       rclcpp::QoS(10));
-    RCLCPP_INFO(get_logger(), "Stats publisher created: ~/occupancy_stats");
+    RCLCPP_INFO(get_logger(), "Stats publisher created: /bonxai/occupancy_stats");
   }
 }
 
@@ -163,18 +165,18 @@ void BonxaiServer::init_services()
   
   // Create service servers
   occupied_voxels_service_ = this->create_service<bonxai_msgs::srv::GetOccupiedVoxels>(
-    "~/get_occupied_voxels",
+    "/bonxai/get_occupied_voxels",
     std::bind(&BonxaiServer::handle_get_occupied_voxels, this,
               std::placeholders::_1, std::placeholders::_2));
               
   free_voxels_service_ = this->create_service<bonxai_msgs::srv::GetFreeVoxels>(
-    "~/get_free_voxels",
+    "/bonxai/get_free_voxels",
     std::bind(&BonxaiServer::handle_get_free_voxels, this,
               std::placeholders::_1, std::placeholders::_2));
   
   RCLCPP_INFO(get_logger(), "Services created:");
-  RCLCPP_INFO(get_logger(), "  - ~/get_occupied_voxels");
-  RCLCPP_INFO(get_logger(), "  - ~/get_free_voxels");
+  RCLCPP_INFO(get_logger(), "  - /bonxai/get_occupied_voxels");
+  RCLCPP_INFO(get_logger(), "  - /bonxai/get_free_voxels");
 }
 
 void BonxaiServer::init_timers()
@@ -274,6 +276,9 @@ void BonxaiServer::pointcloud_callback(const sensor_msgs::msg::PointCloud2::Shar
   
   // Insert into occupancy map
   occupancy_map_->insertPointCloud(map_points, sensor_origin, params_.sensor_max_range);
+  if (!updated_map_once_){
+    updated_map_once_ = true;
+  }
   
   // Update statistics
   point_clouds_processed_++;
@@ -291,8 +296,9 @@ void BonxaiServer::handle_get_occupied_voxels(
 {
   (void)request;  // Unused
   
-  if (!occupancy_map_) {
+  if (!occupancy_map_ || !updated_map_once_) {
     RCLCPP_ERROR(get_logger(), "Occupancy map not initialized");
+    response->success = false;
     return;
   }
   
@@ -326,8 +332,9 @@ void BonxaiServer::handle_get_free_voxels(
 {
   (void)request;  // Unused
   
-  if (!occupancy_map_) {
+  if (!occupancy_map_ || !updated_map_once_) {
     RCLCPP_ERROR(get_logger(), "Occupancy map not initialized");
+    response->success = false;
     return;
   }
   
