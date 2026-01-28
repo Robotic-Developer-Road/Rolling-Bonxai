@@ -1,0 +1,16 @@
+# GetOccupiedVoxels.srv
+# Service to retrieve all occupied voxels from the occupancy map
+
+# Request (empty - returns all occupied voxels)
+---
+
+# Response
+bonxai_msgs/VoxelGrid voxel_grid
+
+# Statistics
+uint64 occupied_count
+uint64 total_active_cells
+float32 occupancy_ratio  # occupied / (occupied + free)
+float32 memory_mb
+
+bool success
