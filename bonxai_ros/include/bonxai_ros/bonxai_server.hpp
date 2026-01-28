@@ -57,6 +57,7 @@ struct BonxaiParams
   bool quick_stats{true};
   bool publish_occupied_voxels{true};
   double stats_publish_rate{1.0};  // Hz
+  
 };
 
 class BonxaiServer : public rclcpp::Node
