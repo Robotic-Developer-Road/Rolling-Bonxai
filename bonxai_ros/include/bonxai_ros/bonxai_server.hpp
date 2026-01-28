@@ -7,6 +7,7 @@
 // ROS2
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
@@ -54,6 +55,7 @@ struct BonxaiParams
   // Stats
   bool enable_stats{true};
   bool quick_stats{true};
+  bool publish_occupied_voxels{true};
   double stats_publish_rate{1.0};  // Hz
 };
 
@@ -92,6 +94,10 @@ private:
   void fill_voxel_grid_msg(
     const std::vector<Bonxai::CoordT>& coords,
     bonxai_msgs::msg::VoxelGrid& msg);
+
+  void fill_pcl_msg(
+    const std::vector<Bonxai::CoordT>& coords,
+    sensor_msgs::msg::PointCloud2& msg);
     
   // Helper: Fill OccupancyMapStats message
   void fill_stats_msg(bonxai_msgs::msg::OccupancyMapStats& msg);
@@ -118,6 +124,7 @@ private:
   
   // Publishers
   rclcpp::Publisher<bonxai_msgs::msg::OccupancyMapStats>::SharedPtr stats_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr occupied_voxel_publisher_;
   
   // Timers
   rclcpp::TimerBase::SharedPtr cleanup_timer_;

@@ -90,6 +90,8 @@ void BonxaiServer::load_parameters()
     
   params_.quick_stats =
     this->declare_parameter<bool>("stats.quick_stats", true);
+
+  params_.publish_occupied_voxels = this->declare_parameter<bool>("stats.publish_occupied_voxels",true);
     
   params_.stats_publish_rate =
     this->declare_parameter<double>("stats.publish_rate", 1.0);
@@ -104,7 +106,7 @@ void BonxaiServer::load_parameters()
     "\n  occupancy_thresh = %.2f"
     "\n  sensor(hit=%.2f miss=%.2f min=%.2f max=%.2f range=%.2f)"
     "\n  cleanup_interval=%.1fs"
-    "\n  stats(enabled=%s quick=%s rate=%.1fHz)",
+    "\n  stats(enabled=%s quick=%s voxels=%s rate=%.1fHz)",
     params_.resolution,
     params_.frame_id.c_str(),
     params_.base_frame_id.c_str(),
@@ -120,6 +122,7 @@ void BonxaiServer::load_parameters()
     params_.cleanup_interval_sec,
     params_.enable_stats ? "true" : "false",
     params_.quick_stats ? "true" : "false",
+    params_.publish_occupied_voxels ? "true" : "false",
     params_.stats_publish_rate);
 }
 
@@ -142,6 +145,10 @@ void BonxaiServer::init_publishers()
     stats_publisher_ = this->create_publisher<bonxai_msgs::msg::OccupancyMapStats>(
       "/bonxai/occupancy_stats",
       rclcpp::QoS(10));
+    
+    occupied_voxel_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      "/bonxai/occupied_voxels",rclcpp::QoS(10));
+  
     RCLCPP_INFO(get_logger(), "Stats publisher created: /bonxai/occupancy_stats");
   }
 }
@@ -214,8 +221,8 @@ void BonxaiServer::pointcloud_callback(const sensor_msgs::msg::PointCloud2::Shar
   geometry_msgs::msg::TransformStamped transform_stamped;
   try {
     transform_stamped = tf_buffer_->lookupTransform(
-      params_.frame_id,
-      msg->header.frame_id,
+      params_.frame_id, //target frame: base_link 
+      msg->header.frame_id, //frame where the camera is publshing at
       msg->header.stamp,
       rclcpp::Duration::from_seconds(0.1));
   } catch (tf2::TransformException& ex) {
@@ -256,7 +263,7 @@ void BonxaiServer::pointcloud_callback(const sensor_msgs::msg::PointCloud2::Shar
     if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
       continue;
     }
-    
+
     // Transform to map frame
     Eigen::Vector3d point_sensor(point.x, point.y, point.z);
     Eigen::Vector3d point_map = rotation * point_sensor + sensor_origin;
@@ -499,23 +506,67 @@ void BonxaiServer::cleanup_timer_callback()
     point_clouds_processed_, total_points_processed_);
 }
 
+void BonxaiServer::fill_pcl_msg(
+    const std::vector<Bonxai::CoordT>& coords,
+   sensor_msgs::msg::PointCloud2& pcl_msg)
+{
+  // Set up the point cloud message
+  pcl_msg.header.stamp = this->now();
+  pcl_msg.header.frame_id = params_.frame_id;
+
+  // Use PointCloud2Modifier to set up fields and reserve space
+  sensor_msgs::PointCloud2Modifier modifier(pcl_msg);
+  modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");  // Add RGB!
+  modifier.resize(coords.size());
+
+  // Create iterator for filling data
+sensor_msgs::PointCloud2Iterator<float> iter_x(pcl_msg, "x");
+sensor_msgs::PointCloud2Iterator<float> iter_y(pcl_msg, "y");
+sensor_msgs::PointCloud2Iterator<float> iter_z(pcl_msg, "z");
+sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(pcl_msg, "r");
+sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(pcl_msg, "g");
+sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(pcl_msg, "b");
+
+  // Get grid for coordinate conversion
+
+  const auto &underlying_grid = occupancy_map_->getGrid();
+  // Fill in the data
+  for (const auto& coord : coords) {
+      auto pos = underlying_grid.coordToPos(coord);
+      
+      *iter_x = static_cast<float>(pos.x);
+      *iter_y = static_cast<float>(pos.y);
+      *iter_z = static_cast<float>(pos.z);
+      
+      // Set color (e.g., red for occupied)
+      *iter_r = 255;
+      *iter_g = 0;
+      *iter_b = 0;
+      
+      ++iter_x; ++iter_y; ++iter_z;
+      ++iter_r; ++iter_g; ++iter_b;
+  }
+}
+
 void BonxaiServer::stats_timer_callback()
 {
   if (!occupancy_map_ || !stats_publisher_) {
     return;
   }
   
-  // Only publish if we have subscribers
-  if (stats_publisher_->get_subscription_count() == 0) {
-    return;
-  }
-  
+  sensor_msgs::msg::PointCloud2 pcl_msg;
+  std::vector<Bonxai::CoordT> coords;
+  occupancy_map_->getOccupiedVoxels(coords);
+  fill_pcl_msg(coords,pcl_msg);
+
   bonxai_msgs::msg::OccupancyMapStats msg;
   fill_stats_msg(msg);
   
   stats_publisher_->publish(msg);
-  
-  RCLCPP_DEBUG(get_logger(),
+  occupied_voxel_publisher_->publish(pcl_msg);
+
+  RCLCPP_INFO_STREAM(get_logger(),"Got " << coords.size() << "Occupied Voxels!");
+  RCLCPP_INFO(get_logger(),
     "Stats published: %lu active cells, %.1f MB, occupancy=%.2f%%",
     msg.total_active_cells,
     static_cast<double>(msg.total_memory_bytes) / 1048576.0,
