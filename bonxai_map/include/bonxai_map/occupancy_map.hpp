@@ -286,7 +286,31 @@ public:
      * @note Does not affect existing voxel probabilities
      */
     void setOptions(const Occupancy::OccupancyOptions& options);
+
+    // ========================================================================
+    // Coordinate System Conversion from 3D Point Coordinate to Grid Coordinate
+    // ========================================================================
     
+    template <typename PositionCoordinateT>
+    CoordT positionToVoxelCoordinate(const PositionCoordinateT &pos_coord)
+    {
+        // Convert our point to something we know
+        const auto position_3d_eigen = ConvertPoint<Vector3D>(pos_coord);
+        
+        CoordT voxel_coord = grid_.posToCoord(position_3d_eigen.x(),position_3d_eigen.y(),position_3d_eigen.z());
+
+        return voxel_coord;
+    }
+
+    Vector3D voxelToPositionCoordinate(const CoordT &voxel_coord)
+    {
+        auto position_coordinate_default = grid_.coordToPos(voxel_coord);
+
+        Vector3D position_coordinate_required = ConvertPoint<Vector3D>(position_coordinate_default);
+
+        return position_coordinate_required;
+    }
+
     // ========================================================================
     // Statistics
     // ========================================================================
