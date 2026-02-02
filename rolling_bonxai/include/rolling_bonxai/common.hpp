@@ -141,6 +141,9 @@ struct ChunkTimestamp
     std::chrono::seconds getAge() const;
     std::chrono::seconds getTimeSinceModified() const;
     std::chrono::seconds getTimeSinceAccessed() const;
+
+    //Get access count
+    uint64_t getAccessCount() const;
 };
 
 

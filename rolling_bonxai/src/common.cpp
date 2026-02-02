@@ -83,4 +83,8 @@ std::chrono::seconds ChunkTimestamp::getTimeSinceAccessed() const {
     return std::chrono::duration_cast<std::chrono::seconds>(now - accessed);
 }
 
+uint64_t ChunkTimestamp::getAccessCount() const {
+    return this->access_count;
+}
+
 } //namespace RollingBonxai
