@@ -18,7 +18,9 @@ find_package(Eigen3 REQUIRED)
 
 # Create the library
 add_library(${PROJECT_NAME} SHARED
+  src/common.cpp
   src/coordinate_system.cpp
+  # src/file_storage_backend.hpp
 )
 
 # Set C++17 standard
