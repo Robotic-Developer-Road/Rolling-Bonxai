@@ -74,20 +74,20 @@ ChunkCoordinateSystem::Vector3D ChunkCoordinateSystem::chunkMinBounds(const Chun
     return min_coordinate;
 }
 
-double ChunkCoordinateSystem::chunkMinBounds(const ChunkCoord& chunk_coord, int axis) const {
+double ChunkCoordinateSystem::chunkMinBounds(const ChunkCoord& chunk_coord, const AxisType &axis) const {
     // Get the min coordinate
     Vector3D coordinate = chunkMinBounds(chunk_coord);
-    if (axis == 0) {
+    if (axis == AxisType::X) {
         return coordinate.x();
     }
-    else if (axis == 1) {
+    else if (axis == AxisType::Y) {
         return coordinate.y();
     }
-    else if (axis == 2) {
+    else if (axis == AxisType::Z) {
         return coordinate.z();
     }
     else {
-        throw std::invalid_argument("Axis must be 0,1 or 2"); //TODO: Unfuck this, i dont want any exceptions thrown
+        return coordinate.x();;
     }
 }
 
@@ -100,20 +100,20 @@ ChunkCoordinateSystem::Vector3D ChunkCoordinateSystem::chunkMaxBounds(const Chun
     return max_coordinate;
 }
 
-double ChunkCoordinateSystem::chunkMaxBounds(const ChunkCoord& chunk_coord, int axis) const {
+double ChunkCoordinateSystem::chunkMaxBounds(const ChunkCoord& chunk_coord, const AxisType &axis) const {
     // Get the min coordinate
     Vector3D coordinate = chunkMaxBounds(chunk_coord);
-    if (axis == 0) {
+    if (axis == AxisType::X) {
         return coordinate.x();
     }
-    else if (axis == 1) {
+    else if (axis == AxisType::Y) {
         return coordinate.y();
     }
-    else if (axis == 2) {
+    else if (axis == AxisType::Z) {
         return coordinate.z();
     }
     else {
-        throw std::invalid_argument("Axis must be 0,1 or 2"); //TODO: Unfuck this, i dont want any exceptions thrown
+        return coordinate.x();
     }
 }
 
@@ -133,7 +133,7 @@ bool ChunkCoordinateSystem::isPositionInChunk(const Vector3D& position, const Ch
 
 double ChunkCoordinateSystem::distanceToBoundary(const Vector3D& position, 
                                             const ChunkCoord& chunk_coord,
-                                            std::optional<int> optional_axis) const {
+                                            std::optional<AxisType> optional_axis) const {
 
     // Check if the position even exists in this chunk. Return -1 if it is not in the chunk
     if (!isPositionInChunk(position,chunk_coord)) { 
@@ -150,12 +150,11 @@ double ChunkCoordinateSystem::distanceToBoundary(const Vector3D& position,
 
     bool optional_axis_arg_given = optional_axis.has_value();
     if (optional_axis_arg_given) {
-        // Get the arg
-        int arg = *optional_axis;
-        if (arg < 0 || arg > 2) {
+        // Check
+        if (*optional_axis == AxisType::INDETERMINATE) {
             // Cmon, you literally just need to either give 0:x axis, 1: y axis, 2: z_axis
-            optional_axis_arg_given = false;
-            // Non complance will give you the the min distance to any boundary
+            // Non complance will give you a failure value
+            return -1.0;
         }
     }
 
@@ -163,9 +162,9 @@ double ChunkCoordinateSystem::distanceToBoundary(const Vector3D& position,
     
     for (Eigen::Index i = 0 ; i < 3 ; ++i) {
         // consistent with rounding up if equal
-        double d = abs_diff_to_upper[i] <= abs_diff_to_upper[i] ? abs_diff_to_upper[i] : abs_diff_to_lower[i];
-
-        if (optional_axis_arg_given && *optional_axis == static_cast<int>(i)) {
+        double d = std::min(abs_diff_to_upper[i], abs_diff_to_lower[i]);
+    
+        if (optional_axis_arg_given && static_cast<int>(*optional_axis) == static_cast<int>(i)) {
             return d;
         }
 
@@ -225,6 +224,18 @@ std::vector<ChunkCoord> ChunkCoordinateSystem::getCornerNeighbours(const ChunkCo
         {chunk_coord.x + 1, chunk_coord.y + 1, chunk_coord.z - 1}, //front - left   -  down
         {chunk_coord.x + 1, chunk_coord.y + 1, chunk_coord.z + 1}  //front - left   -  top
     }};
+}
+
+std::vector<ChunkCoord> ChunkCoordinateSystem::getAllNeighbours(const ChunkCoord& chunk_coord) {
+    // createa vector for all neighbours
+    std::vector<ChunkCoord> all_neighbours;
+    all_neighbours.reserve(26);
+
+    forEachNeighbour(chunk_coord, 1, [&all_neighbours](const ChunkCoord& nb) {
+        all_neighbours.push_back(nb);
+    });
+    
+    return all_neighbours;
 }
 
 [[nodiscard]] ChunkCoordinateSystem::NeighbourType ChunkCoordinateSystem::getNeighbourType(const ChunkCoord& delta) {

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <type_traits>
 
 namespace RollingBonxai
 {
@@ -109,10 +110,24 @@ public:
         INDETERMINATE = 4 // not an immediate neighbour
     };
 
+    enum class AxisType : uint8_t {
+        X = 0,
+        Y = 1,
+        Z = 2,
+        INDETERMINATE = 4
+    };
+
     static inline std::string reflectNeighbourType(const NeighbourType& type) {
         // build a mapping
-        std::vector<std::string> mapping = {"SOURCE","FACE","EDGE","CORNER","INDETERMINATE"};
+        std::array<std::string,5> mapping = {"SOURCE","FACE","EDGE","CORNER","INDETERMINATE"};
 
+        return mapping[static_cast<uint8_t>(type)];
+    }
+
+    static inline std::string reflectAxisType(const AxisType& type) {
+        // create the mapping
+        std::array<std::string,4> mapping = {"X","Y","Z","INDETERMINATE"};
+        
         return mapping[static_cast<uint8_t>(type)];
     }
 
@@ -150,7 +165,7 @@ public:
     /**
      * @brief
      */
-    [[nodiscard]] double chunkMinBounds(const ChunkCoord& chunk_coord, int axis) const;
+    [[nodiscard]] double chunkMinBounds(const ChunkCoord& chunk_coord, const AxisType &axis) const;
 
     /**
      * @brief
@@ -160,7 +175,7 @@ public:
     /**
      * @brief
      */
-    [[nodiscard]] double chunkMaxBounds(const ChunkCoord& chunk_coord, int axis) const;
+    [[nodiscard]] double chunkMaxBounds(const ChunkCoord& chunk_coord, const AxisType &axis) const;
 
 
     /**
@@ -188,7 +203,7 @@ public:
     template <typename PositionCoordinateT>
     [[nodiscard]] double distanceToBoundary(const PositionCoordinateT& position, 
                                             const ChunkCoord& chunk_coord,
-                                            std::optional<int> optional_axis = std::nullopt) const {
+                                            std::optional<AxisType> optional_axis = std::nullopt) const {
         Vector3D pos_to_use = Bonxai::ConvertPoint<Vector3D>(position);
         return distanceToBoundary(pos_to_use,chunk_coord,optional_axis);
     }
@@ -198,7 +213,7 @@ public:
      */
     [[nodiscard]] double distanceToBoundary(const Vector3D& position, 
                                             const ChunkCoord& chunk_coord,
-                                            std::optional<int> optional_axis = std::nullopt) const;
+                                            std::optional<AxisType> optional_axis = std::nullopt) const;
 
     /**
      * @brief
@@ -214,11 +229,29 @@ public:
      * @brief
      */
     [[nodiscard]] static std::vector<ChunkCoord> getCornerNeighbours(const ChunkCoord& chunk_coord);
+    
+    /**
+     * @brief
+     */
+    [[nodiscard]] static std::vector<ChunkCoord> getAllNeighbours(const ChunkCoord& chunk_coord);
 
     /**
      * @brief
      */
     [[nodiscard]] static NeighbourType getNeighbourType(const ChunkCoord& delta);
+
+    template <typename Func>
+    static void forEachNeighbour(const ChunkCoord& center, int radius, Func&& func) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            for (int dy = -radius; dy <= radius; ++dy) {
+                for (int dz = -radius; dz <= radius; ++dz) {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
+                    ChunkCoord nb{center.x + dx, center.y + dy, center.z + dz};
+                    func(nb); 
+                }
+            }
+        }
+    }
 
     /**
      * @brief 
