@@ -15,10 +15,13 @@ find_package(ament_cmake REQUIRED)
 find_package(bonxai_core REQUIRED)
 find_package(bonxai_map REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # Create the library
 add_library(${PROJECT_NAME} SHARED
+  src/common.cpp
   src/coordinate_system.cpp
+  src/file_storage_backend.cpp
 )
 
 # Set C++17 standard
@@ -37,6 +40,7 @@ target_link_libraries(${PROJECT_NAME}
   PUBLIC
     bonxai_core::bonxai_core
     bonxai_map::bonxai_map
+    yaml-cpp
 )
 
 # Export dependencies for downstream packages
