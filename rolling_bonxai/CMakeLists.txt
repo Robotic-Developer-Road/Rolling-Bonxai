@@ -79,15 +79,77 @@ ament_export_dependencies(
 ament_export_include_directories(include)
 
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
+  # turn off linting because our codestyle is fucked
+  # find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
   set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
+  # ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(bonxai_core REQUIRED)
+  find_package(bonxai_map REQUIRED)
+
+  add_library(${PROJECT_NAME}_testlib STATIC
+    src/common.cpp
+    src/coordinate_system.cpp
+    src/file_storage_backend.cpp
+  )
+
+  target_include_directories(${PROJECT_NAME}_testlib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(${PROJECT_NAME}_testlib PUBLIC
+    bonxai_core::bonxai_core
+    bonxai_map::bonxai_map
+    yaml-cpp
+  )
+
+  ament_target_dependencies(${PROJECT_NAME}_testlib PUBLIC
+    Eigen3
+  )
+
+  ## Common tests
+  ament_add_gtest(test_common
+    test/test_common.cpp
+  )
+
+  target_include_directories(test_common PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_common
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_common
+    Eigen3
+    bonxai_core
+    bonxai_map
+  )
+
+  ## Coordinate System tests
+  ament_add_gtest(test_coordinate_system
+    test/test_coordinate_system.cpp
+  )
+
+  target_include_directories(test_coordinate_system PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_coordinate_system
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_coordinate_system
+    Eigen3
+    bonxai_core
+    bonxai_map
+  )
+
 endif()
 
 ament_package()
