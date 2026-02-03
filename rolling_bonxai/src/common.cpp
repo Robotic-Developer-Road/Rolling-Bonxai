@@ -87,4 +87,57 @@ uint64_t ChunkTimestamp::getAccessCount() const {
     return this->access_count;
 }
 
+// ============================================================================
+// ManagedChunk impl
+// ============================================================================
+ManagedChunk::ManagedChunk(std::unique_ptr<Bonxai::OccupancyMap> map, ChunkCoord& chunk_coordinate, bool dirty) 
+:
+map_(std::move(map)),
+chunk_coordinate_(chunk_coordinate),
+is_dirty_(false)
+{}
+
+const Bonxai::OccupancyMap* ManagedChunk::getConstMap() const {
+    return map_.get();
+}
+
+Bonxai::OccupancyMap* ManagedChunk::getMutableMap() {
+    // Someones gonna modify it, so we mark it as dirty
+    markDirty();
+    return map_.get();
+}
+
+ChunkCoord ManagedChunk::getChunkCoord() {
+    return chunk_coordinate_;
+}
+
+std::string ManagedChunk::getChunkCoordStr() {
+    std::ostringstream oss;
+    oss << "(" << chunk_coordinate_.x << "," << chunk_coordinate_.y << "," << chunk_coordinate_.z << ")";
+    return oss.str();
+}
+
+bool ManagedChunk::isDirty() const {
+    return is_dirty_.load();
+}
+
+void ManagedChunk::markDirty() {
+    is_dirty_.store(true);
+}
+
+void ManagedChunk::markClean() {
+    is_dirty_.store(false);
+}
+
+std::unique_ptr<Bonxai::OccupancyMap> ManagedChunk::transferMapOwnership() {
+    // no map means no notion of dirty or clean
+    markClean();
+    return std::move(map_);
+}
+
+bool ManagedChunk::isMapValid() {
+    if (map_) {return true;}
+    return false;
+}
+
 } //namespace RollingBonxai
