@@ -12,7 +12,7 @@ provides the following API:
 1. insert(...) > Insert a ManagedChunk
 2. find() > Finds and returns a ref to the ManagedChunk 
 3. erase() > Deletes a ManagedChunk with a given 
-4. contains() > Returns true if a ManagedChunk with a given ChunkCoord is present
+4. contains() > Returns true if a ManagedChunk with a given ChunkCoorfddd is present
 5. size() > Returns the number of ManagedChunks currently stored
 6. empty() > Return true if the container is empty
 */
