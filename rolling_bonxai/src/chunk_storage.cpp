@@ -1,93 +1,92 @@
 #include "rolling_bonxai/chunk_storage.hpp"
 #include <algorithm>
 #include <utility>
+
 namespace RollingBonxai
 {
     ////////////////////////////////////////////////////////
     //////////////////////Vector Impl///////////////////////
     ////////////////////////////////////////////////////////
-    VectorChunkStorage::VectorChunkStorage() {
-        // reserve space minimally for 26 neighbours + 1 source
-        chunks_.reserve(27);
+    
+    VectorChunkStorage::VectorChunkStorage(size_t capacity_hint) {
+        // Reserve space minimally for 26 neighbours + 1 source
+        capacity_hint_ = capacity_hint;
+        chunks_.reserve(capacity_hint_);
     }
     
     void VectorChunkStorage::insert(const ChunkCoord& coord, ManagedChunk&& chunk_ob) {
-        bool already_contains = contains(coord);
-        if (already_contains) {
-            return;
+        // Single-pass search: check if already exists
+        for (const auto& [existing_coord, _] : chunks_) {
+            if (existing_coord == coord) {
+                return; // Already exists, skip insertion
+            }
         }
-        else {
-            chunks_.emplace_back(coord,std::move(chunk_ob));
-        }
+        
+        chunks_.emplace_back(coord, std::move(chunk_ob));
     }
 
     ManagedChunk* VectorChunkStorage::find(const ChunkCoord& coord) {
-        auto it = std::find_if(chunks_.begin(),chunks_.end(),[&coord](const auto& entry_pair)
-        {
-            return entry_pair.first == coord;
-        });
+        auto it = std::find_if(chunks_.begin(), chunks_.end(), 
+            [&coord](const auto& entry) { return entry.first == coord; });
         
         return (it != chunks_.end()) ? &(it->second) : nullptr;
     }
 
     const ManagedChunk* VectorChunkStorage::find(const ChunkCoord& coord) const {
-        auto it = std::find_if(chunks_.begin(),chunks_.end(),[&coord](const auto& entry_pair)
-        {
-            return entry_pair.first == coord;
-        });
+        auto it = std::find_if(chunks_.begin(), chunks_.end(), 
+            [&coord](const auto& entry) { return entry.first == coord; });
         
         return (it != chunks_.cend()) ? &(it->second) : nullptr;
     }
 
     bool VectorChunkStorage::contains(const ChunkCoord& coord) const {
-        auto it = std::find_if(chunks_.begin(),chunks_.end(),[&coord](const auto& entry_pair)
-        {
-            return entry_pair.first == coord;
-        });
+        auto it = std::find_if(chunks_.begin(), chunks_.end(), 
+            [&coord](const auto& entry) { return entry.first == coord; });
         
-        bool found = (it != chunks_.end());
-
-        return found;
+        return (it != chunks_.end());
     }
 
     void VectorChunkStorage::erase(const ChunkCoord& coord) {
-        // implements a swap-pop erase because order doesnt really matter
-        // Check the last element
+        // Swap-and-pop erase: O(1) deletion after O(n) search
+        // Check the last element first
         if (chunks_.back().first == coord) {
             chunks_.pop_back();
             return;
         }
 
-        for (size_t i = 0 ; i < chunks_.size() - 1 ; ++i) {
+        // Search remaining elements
+        for (size_t i = 0; i < chunks_.size() - 1; ++i) {
             if (chunks_[i].first == coord) {
-                // this prevents any self moves where chunks[i] == chunks.back()
+                // Swap with back and pop
                 chunks_[i] = std::move(chunks_.back());
                 chunks_.pop_back();
+                return;
             }
         }
+        
+        // If not found, no-op (silent failure as documented)
     }
 
     void VectorChunkStorage::clear() {
         chunks_.clear();
-        chunks_.reserve(27);
+        chunks_.reserve(capacity_hint_);
     }
 
-    size_t VectorChunkStorage::size() {
+    size_t VectorChunkStorage::size() const {
         return chunks_.size();
     }
 
-    size_t VectorChunkStorage::capacity() {
+    size_t VectorChunkStorage::capacity() const {
         return chunks_.capacity();
     }
 
-    bool VectorChunkStorage::empty() {
+    bool VectorChunkStorage::empty() const {
         return chunks_.empty();
     }
 
     void VectorChunkStorage::forEachChunk(
         const std::function<void(const ChunkCoord&, ManagedChunk&)>& fn
-    )
-    {
+    ) {
         for (auto& [coord, chunk] : chunks_) {
             fn(coord, chunk);
         }
@@ -95,43 +94,39 @@ namespace RollingBonxai
 
     void VectorChunkStorage::forEachChunk(
         const std::function<void(const ChunkCoord&, const ManagedChunk&)>& fn
-    ) const
-    {
+    ) const {
         for (const auto& [coord, chunk] : chunks_) {
             fn(coord, chunk);
         }
     }
 
+    size_t VectorChunkStorage::getCapacityHint() const {
+        return capacity_hint_;
+    }
+
     ////////////////////////////////////////////////////////
     //////////////////Unordered Map Impl////////////////////
     ////////////////////////////////////////////////////////
-    HashMapChunkStorage::HashMapChunkStorage() {
-        // reserve space minimally for 26 neighbours + 1 source
-        chunks_.reserve(27);
+    
+    HashMapChunkStorage::HashMapChunkStorage(size_t capacity_hint) {
+        // Reserve space minimally for 26 neighbours + 1 source
+        capacity_hint_ = capacity_hint;
+        chunks_.reserve(capacity_hint_);
     }
     
     void HashMapChunkStorage::insert(const ChunkCoord& coord, ManagedChunk&& chunk_ob) {
-        chunks_.try_emplace(coord,std::move(chunk_ob));
+        // try_emplace: only inserts if key doesn't exist
+        chunks_.try_emplace(coord, std::move(chunk_ob));
     }
 
     ManagedChunk* HashMapChunkStorage::find(const ChunkCoord& coord) {
         auto it = chunks_.find(coord);
-        if (it != chunks_.end()) {
-            return &(it->second);
-        }
-        else {
-            return nullptr;
-        }
+        return (it != chunks_.end()) ? &(it->second) : nullptr;
     }
 
     const ManagedChunk* HashMapChunkStorage::find(const ChunkCoord& coord) const {
         auto it = chunks_.find(coord);
-        if (it != chunks_.end()) {
-            return &(it->second);
-        }
-        else {
-            return nullptr;
-        }
+        return (it != chunks_.end()) ? &(it->second) : nullptr;
     }
 
     bool HashMapChunkStorage::contains(const ChunkCoord& coord) const {
@@ -139,33 +134,31 @@ namespace RollingBonxai
     }
 
     void HashMapChunkStorage::erase(const ChunkCoord& coord) {
-        auto it = chunks_.find(coord);
-        if (it != chunks_.end()) {
-            chunks_.erase(it);
-        }
+        // unordered_map::erase handles "not found" gracefully (no-op)
+        chunks_.erase(coord);
     }
 
     void HashMapChunkStorage::clear() {
         chunks_.clear();
-        chunks_.reserve(27);
+        chunks_.reserve(capacity_hint_);
     }
 
-    size_t HashMapChunkStorage::size() {
+    size_t HashMapChunkStorage::size() const {
         return chunks_.size();
     }
 
-    size_t HashMapChunkStorage::capacity() {
-        return chunks_.bucket_count() * chunks_.max_load_factor();
+    size_t HashMapChunkStorage::capacity() const {
+        // Return number of buckets allocated
+        return chunks_.bucket_count();
     }
 
-    bool HashMapChunkStorage::empty() {
+    bool HashMapChunkStorage::empty() const {
         return chunks_.empty();
     }
 
     void HashMapChunkStorage::forEachChunk(
         const std::function<void(const ChunkCoord&, ManagedChunk&)>& fn
-    )
-    {
+    ) {
         for (auto& [coord, chunk] : chunks_) {
             fn(coord, chunk);
         }
@@ -173,93 +166,93 @@ namespace RollingBonxai
 
     void HashMapChunkStorage::forEachChunk(
         const std::function<void(const ChunkCoord&, const ManagedChunk&)>& fn
-    ) const
-    {
+    ) const {
         for (const auto& [coord, chunk] : chunks_) {
             fn(coord, chunk);
         }
     }
 
+    size_t HashMapChunkStorage::getCapacityHint() const {
+        return capacity_hint_;
+    }
+
     ////////////////////////////////////////////////////////
-    //////////////////////Deque Impl///////////////////////
+    //////////////////////Deque Impl////////////////////////
     ////////////////////////////////////////////////////////
     
     void DequeChunkStorage::insert(const ChunkCoord& coord, ManagedChunk&& chunk_ob) {
-        bool already_contains = contains(coord);
-        if (already_contains) {
-            return;
+        // Single-pass search: check if already exists
+        for (const auto& [existing_coord, _] : chunks_) {
+            if (existing_coord == coord) {
+                return; // Already exists, skip insertion
+            }
         }
-        else {
-            chunks_.emplace_back(coord,std::move(chunk_ob));
-        }
+        
+        chunks_.emplace_back(coord, std::move(chunk_ob));
     }
 
     ManagedChunk* DequeChunkStorage::find(const ChunkCoord& coord) {
-        auto it = std::find_if(chunks_.begin(),chunks_.end(),[&coord](const auto& entry_pair)
-        {
-            return entry_pair.first == coord;
-        });
+        auto it = std::find_if(chunks_.begin(), chunks_.end(), 
+            [&coord](const auto& entry) { return entry.first == coord; });
         
         return (it != chunks_.end()) ? &(it->second) : nullptr;
     }
 
     const ManagedChunk* DequeChunkStorage::find(const ChunkCoord& coord) const {
-        auto it = std::find_if(chunks_.begin(),chunks_.end(),[&coord](const auto& entry_pair)
-        {
-            return entry_pair.first == coord;
-        });
+        auto it = std::find_if(chunks_.begin(), chunks_.end(), 
+            [&coord](const auto& entry) { return entry.first == coord; });
         
         return (it != chunks_.cend()) ? &(it->second) : nullptr;
     }
 
     bool DequeChunkStorage::contains(const ChunkCoord& coord) const {
-        auto it = std::find_if(chunks_.begin(),chunks_.end(),[&coord](const auto& entry_pair)
-        {
-            return entry_pair.first == coord;
-        });
+        auto it = std::find_if(chunks_.begin(), chunks_.end(), 
+            [&coord](const auto& entry) { return entry.first == coord; });
         
-        bool found = (it != chunks_.end());
-
-        return found;
+        return (it != chunks_.end());
     }
 
     void DequeChunkStorage::erase(const ChunkCoord& coord) {
-        // implements a swap-pop erase because order doesnt really matter
-        // Check the last element
+        // Swap-and-pop erase: O(1) deletion after O(n) search
+        // Check the last element first
         if (chunks_.back().first == coord) {
             chunks_.pop_back();
             return;
         }
 
-        for (size_t i = 0 ; i < chunks_.size() - 1 ; ++i) {
+        // Search remaining elements
+        for (size_t i = 0; i < chunks_.size() - 1; ++i) {
             if (chunks_[i].first == coord) {
-                // this prevents any self moves where chunks[i] == chunks.back()
+                // Swap with back and pop
                 chunks_[i] = std::move(chunks_.back());
                 chunks_.pop_back();
+                return;
             }
         }
+        
+        // If not found, no-op (silent failure as documented)
     }
 
     void DequeChunkStorage::clear() {
         chunks_.clear();
     }
 
-    size_t DequeChunkStorage::size() {
+    size_t DequeChunkStorage::size() const {
         return chunks_.size();
     }
 
-    size_t DequeChunkStorage::capacity() {
-        return chunks_.max_size();
+    size_t DequeChunkStorage::capacity() const {
+        // Deque has no meaningful capacity; return current size
+        return chunks_.size();
     }
 
-    bool DequeChunkStorage::empty() {
+    bool DequeChunkStorage::empty() const {
         return chunks_.empty();
     }
 
     void DequeChunkStorage::forEachChunk(
         const std::function<void(const ChunkCoord&, ManagedChunk&)>& fn
-    )
-    {
+    ) {
         for (auto& [coord, chunk] : chunks_) {
             fn(coord, chunk);
         }
@@ -267,10 +260,10 @@ namespace RollingBonxai
 
     void DequeChunkStorage::forEachChunk(
         const std::function<void(const ChunkCoord&, const ManagedChunk&)>& fn
-    ) const
-    {
+    ) const {
         for (const auto& [coord, chunk] : chunks_) {
             fn(coord, chunk);
         }
     }
-}
+    
+} // namespace RollingBonxai
