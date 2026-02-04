@@ -90,12 +90,28 @@ uint64_t ChunkTimestamp::getAccessCount() const {
 // ============================================================================
 // ManagedChunk impl
 // ============================================================================
-ManagedChunk::ManagedChunk(std::unique_ptr<Bonxai::OccupancyMap> map, ChunkCoord& chunk_coordinate, bool dirty) 
+ManagedChunk::ManagedChunk(MapUPtr map, ChunkCoord& chunk_coordinate, bool dirty) 
 :
 map_(std::move(map)),
 chunk_coordinate_(chunk_coordinate),
-is_dirty_(false)
+is_dirty_(dirty)
 {}
+
+ManagedChunk::ManagedChunk(ManagedChunk&& other) noexcept
+:
+map_(std::move(other.map_)),
+chunk_coordinate_(other.chunk_coordinate_),
+is_dirty_(other.is_dirty_.load()) {}
+
+ManagedChunk& ManagedChunk::operator=(ManagedChunk&& other) noexcept
+{
+    if (this != &other) {
+        map_ = std::move(other.map_);
+        chunk_coordinate_ = other.chunk_coordinate_;
+        is_dirty_.store(other.is_dirty_.load());
+    }
+    return *this;
+}
 
 const Bonxai::OccupancyMap* ManagedChunk::getConstMap() const {
     return map_.get();

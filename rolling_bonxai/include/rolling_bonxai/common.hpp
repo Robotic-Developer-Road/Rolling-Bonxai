@@ -190,12 +190,12 @@ public:
     /**
      * @brief
      */
-    ManagedChunk(ManagedChunk&& other) noexcept = default;
+    ManagedChunk(ManagedChunk&& other) noexcept;
     
     /**
      * @brief
      */
-    ManagedChunk& operator=(ManagedChunk&& other) noexcept = default;
+    ManagedChunk& operator=(ManagedChunk&& other) noexcept;
     
     /**
      * @brief
