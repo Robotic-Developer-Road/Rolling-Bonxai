@@ -27,6 +27,7 @@ add_library(${PROJECT_NAME} SHARED
   src/common.cpp
   src/coordinate_system.cpp
   src/chunk_storage.cpp
+  src/chunk_loading_policies.cpp
   src/file_storage_backend.cpp
 )
 
