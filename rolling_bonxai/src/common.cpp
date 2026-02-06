@@ -90,7 +90,7 @@ uint64_t ChunkTimestamp::getAccessCount() const {
 // ============================================================================
 // ManagedChunk impl
 // ============================================================================
-ManagedChunk::ManagedChunk(MapUPtr map, ChunkCoord& chunk_coordinate, bool dirty) 
+ManagedChunk::ManagedChunk(MapUPtr map, const ChunkCoord& chunk_coordinate, bool dirty) 
 :
 map_(std::move(map)),
 chunk_coordinate_(chunk_coordinate),

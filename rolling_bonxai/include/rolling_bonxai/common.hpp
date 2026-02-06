@@ -181,7 +181,7 @@ public:
     /**
      * @brief
      */
-    explicit ManagedChunk(MapUPtr map, ChunkCoord& chunk_coordinate, bool dirty = false);
+    explicit ManagedChunk(MapUPtr map, const ChunkCoord& chunk_coordinate, bool dirty = false);
 
     /**
      * @brief
