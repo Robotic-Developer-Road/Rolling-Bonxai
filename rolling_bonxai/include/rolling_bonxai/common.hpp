@@ -264,7 +264,6 @@ private:
 
     /// @brief Threadsafe dirty tracking, true means it has been updated before since its last load
     std::atomic<bool> is_dirty_;
-
 };
 
 
