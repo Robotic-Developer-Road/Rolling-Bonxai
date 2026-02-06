@@ -1,6 +1,12 @@
 #pragma once
 #include <eigen3/Eigen/Geometry>
+
 #include <chrono>
+#include <memory>
+#include <atomic>
+#include <string>
+#include <sstream>
+#include "bonxai_map/occupancy_map.hpp"
 
 namespace RollingBonxai
 {
@@ -11,6 +17,7 @@ namespace RollingBonxai
  * Intended for future velocity-based features (e.g., predictive preloading).
  */
 using LinearVelocity3D = Eigen::Vector3d;
+using Position3D = Eigen::Vector3d;
 
 /**
  * @brief Chunk coordinate in grid space using center-origin convention
@@ -145,6 +152,122 @@ struct ChunkTimestamp
     //Get access count
     uint64_t getAccessCount() const;
 };
+
+/**
+ * @brief Metadata stored 
+ * 
+ * Timestamps are stored in nanoseconds since epoch (int64_t) for precision.
+ * This enables temporal policies and analytics in future versions.
+ */
+struct ChunkMetadata {
+    int64_t creation_time{0};
+    int64_t last_access_time{0};
+    uint64_t access_count{0};
+    bool is_dirty {false};
+};
+
+
+/**
+ * @brief ManagedChunk is a wrapper around an OccupancyMap (aka a chunk) to handle
+ * the lifetimes of the chunk deterministically
+ * 
+ * It also provides utilities to track the "dirtiness" of the chunk
+ */
+
+class ManagedChunk 
+{
+    using MapUPtr = std::unique_ptr<Bonxai::OccupancyMap>;
+public:
+    /**
+     * @brief
+     */
+    explicit ManagedChunk(MapUPtr map, ChunkCoord& chunk_coordinate, bool dirty = false);
+
+    /**
+     * @brief
+     */
+    ~ManagedChunk() = default;
+
+    /**
+     * @brief
+     */
+    ManagedChunk(ManagedChunk&& other) noexcept;
+    
+    /**
+     * @brief
+     */
+    ManagedChunk& operator=(ManagedChunk&& other) noexcept;
+    
+    /**
+     * @brief
+     */
+    ManagedChunk(const ManagedChunk&) = delete;
+
+    /**
+     * @brief
+     */
+    ManagedChunk& operator=(const ManagedChunk&) = delete;
+
+    /**
+     * @brief Readonly const access to underlying map
+     */
+    [[nodiscard]] const Bonxai::OccupancyMap* getConstMap() const;
+
+    /**
+     * @brief Mutable access to underlying map
+     */
+    [[nodiscard]] Bonxai::OccupancyMap* getMutableMap();
+
+    /**
+     * @brief Get the chunk coord
+     */
+    [[nodiscard]] ChunkCoord getChunkCoord();
+
+    /**
+     * @brief Get the chunk coord as a str
+     */
+    [[nodiscard]] std::string getChunkCoordStr();
+
+    /**
+     * @brief Check if it is dirty
+     */
+    [[nodiscard]] bool isDirty() const;
+
+    /**
+     * @brief Mark as dirty
+     */
+    void markDirty();
+
+    /**
+     * @brief
+     */
+    void markClean();
+
+    /**
+     * @brief Transfer ownership to another unique pointer
+     * This will leave the unique pointer as a nullptr_t
+     */
+    [[nodiscard]] MapUPtr transferMapOwnership();
+
+    /**
+     * @brief Check if the map is valid, basically just a check if the map is a nullptr
+     */
+    [[nodiscard]] bool isMapValid();
+    
+private:
+    
+    /// @brief An owning unique pointer to the chunk
+    MapUPtr map_;
+
+    /// @brief The chunk coordinate corresponding to this chunk
+    ChunkCoord chunk_coordinate_;
+
+    /// @brief Threadsafe dirty tracking, true means it has been updated before since its last load
+    std::atomic<bool> is_dirty_;
+
+};
+
+
 
 
 } // namespace Rolling Bonxai

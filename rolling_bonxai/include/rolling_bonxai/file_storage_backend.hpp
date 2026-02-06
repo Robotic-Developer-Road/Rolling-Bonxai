@@ -10,7 +10,7 @@
 #include "bonxai_core/serialization.hpp"
 #include "bonxai_map/occupancy_map.hpp"
 #include "rolling_bonxai/common.hpp"
-
+#include <yaml-cpp/yaml.h>
 
 namespace RollingBonxai 
 {

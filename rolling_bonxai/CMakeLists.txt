@@ -9,18 +9,25 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-
+# ============================================================================
 # Find dependencies
+# ============================================================================
+
 find_package(ament_cmake REQUIRED)
 find_package(bonxai_core REQUIRED)
 find_package(bonxai_map REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
+# ============================================================================
 # Create the library
+# ============================================================================
+
 add_library(${PROJECT_NAME} SHARED
   src/common.cpp
   src/coordinate_system.cpp
+  src/chunk_storage.cpp
+  src/chunk_loading_policies.cpp
   src/file_storage_backend.cpp
 )
 
@@ -49,7 +56,10 @@ ament_target_dependencies(${PROJECT_NAME}
     Eigen3
 )
 
+# ============================================================================
 # Install library
+# ============================================================================
+
 install(
   TARGETS ${PROJECT_NAME}
   EXPORT ${PROJECT_NAME}Targets
@@ -77,6 +87,10 @@ ament_export_dependencies(
 
 # Export include directories
 ament_export_include_directories(include)
+
+# ============================================================================
+# Testing
+# ============================================================================
 
 if(BUILD_TESTING)
   # turn off linting because our codestyle is fucked
@@ -150,6 +164,43 @@ if(BUILD_TESTING)
     bonxai_map
   )
 
+    ## File Storage Backend tests
+  ament_add_gtest(test_file_storage_backend
+    test/test_file_storage_backend.cpp
+  )
+
+  target_include_directories(test_file_storage_backend PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_file_storage_backend
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_file_storage_backend
+    Eigen3
+    bonxai_core
+    bonxai_map
+  )
+
 endif()
+
+# ============================================================================
+# Optional: Build Benchmarks
+# ============================================================================
+
+option(BUILD_BENCHMARKS "Build benchmark executables" OFF)
+
+if(BUILD_BENCHMARKS)
+  message(STATUS "Building benchmarks (BUILD_BENCHMARKS=ON)")
+  add_subdirectory(benchmark)
+else()
+  message(STATUS "Skipping benchmarks (BUILD_BENCHMARKS=OFF)")
+endif()
+
+# ============================================================================
+# Package
+# ============================================================================
 
 ament_package()
