@@ -107,7 +107,7 @@ if(BUILD_TESTING)
     src/common.cpp
     src/coordinate_system.cpp
     src/chunk_storage.cpp
-    # src/chunk_loading_policies.cpp
+    src/chunk_loading_policies.cpp
     src/file_storage_backend.cpp
   )
 
@@ -186,7 +186,7 @@ if(BUILD_TESTING)
     bonxai_map
   )
 
-    ## Chunk Storage tests
+  ## Chunk Storage tests
   ament_add_gtest(test_chunk_storage
     test/test_chunk_storage.cpp
   )
@@ -201,6 +201,26 @@ if(BUILD_TESTING)
   )
 
   ament_target_dependencies(test_chunk_storage
+    Eigen3
+    bonxai_core
+    bonxai_map
+  )
+
+  ## Chunk Loading Policy
+  ament_add_gtest(test_chunk_loading_policy
+    test/test_chunk_loading_policy.cpp
+  )
+
+  target_include_directories(test_chunk_loading_policy PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_chunk_loading_policy
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_chunk_loading_policy
     Eigen3
     bonxai_core
     bonxai_map
