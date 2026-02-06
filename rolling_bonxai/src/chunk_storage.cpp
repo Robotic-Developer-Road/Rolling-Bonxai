@@ -26,6 +26,9 @@ namespace RollingBonxai
     }
 
     ManagedChunk* VectorChunkStorage::find(const ChunkCoord& coord) {
+        // If empty just return nullptre
+        if (chunks_.empty()) {return nullptr;}
+
         auto it = std::find_if(chunks_.begin(), chunks_.end(), 
             [&coord](const auto& entry) { return entry.first == coord; });
         
@@ -33,6 +36,8 @@ namespace RollingBonxai
     }
 
     const ManagedChunk* VectorChunkStorage::find(const ChunkCoord& coord) const {
+        // If empty just return nullptre
+        if (chunks_.empty()) {return nullptr;}
         auto it = std::find_if(chunks_.begin(), chunks_.end(), 
             [&coord](const auto& entry) { return entry.first == coord; });
         
@@ -40,6 +45,7 @@ namespace RollingBonxai
     }
 
     bool VectorChunkStorage::contains(const ChunkCoord& coord) const {
+        if (chunks_.empty()) {return false;}
         auto it = std::find_if(chunks_.begin(), chunks_.end(), 
             [&coord](const auto& entry) { return entry.first == coord; });
         
@@ -49,6 +55,9 @@ namespace RollingBonxai
     void VectorChunkStorage::erase(const ChunkCoord& coord) {
         // Swap-and-pop erase: O(1) deletion after O(n) search
         // Check the last element first
+        // If empty just return nullptr. next line with segfault if we are not careful
+        if (chunks_.empty()) {return; /*a no op*/}
+
         if (chunks_.back().first == coord) {
             chunks_.pop_back();
             return;
@@ -120,21 +129,25 @@ namespace RollingBonxai
     }
 
     ManagedChunk* HashMapChunkStorage::find(const ChunkCoord& coord) {
+        if (chunks_.empty()) {return nullptr;}
         auto it = chunks_.find(coord);
         return (it != chunks_.end()) ? &(it->second) : nullptr;
     }
 
     const ManagedChunk* HashMapChunkStorage::find(const ChunkCoord& coord) const {
+        if (chunks_.empty()) {return nullptr;}
         auto it = chunks_.find(coord);
         return (it != chunks_.end()) ? &(it->second) : nullptr;
     }
 
     bool HashMapChunkStorage::contains(const ChunkCoord& coord) const {
+        if (chunks_.empty()) {return false;}
         return chunks_.find(coord) != chunks_.end();
     }
 
     void HashMapChunkStorage::erase(const ChunkCoord& coord) {
         // unordered_map::erase handles "not found" gracefully (no-op)
+        if (chunks_.empty()) {return/*no op*/;}
         chunks_.erase(coord);
     }
 
@@ -192,6 +205,7 @@ namespace RollingBonxai
     }
 
     ManagedChunk* DequeChunkStorage::find(const ChunkCoord& coord) {
+        if (chunks_.empty()) {return nullptr;}
         auto it = std::find_if(chunks_.begin(), chunks_.end(), 
             [&coord](const auto& entry) { return entry.first == coord; });
         
@@ -199,6 +213,7 @@ namespace RollingBonxai
     }
 
     const ManagedChunk* DequeChunkStorage::find(const ChunkCoord& coord) const {
+        if (chunks_.empty()) {return nullptr;}
         auto it = std::find_if(chunks_.begin(), chunks_.end(), 
             [&coord](const auto& entry) { return entry.first == coord; });
         
@@ -206,6 +221,7 @@ namespace RollingBonxai
     }
 
     bool DequeChunkStorage::contains(const ChunkCoord& coord) const {
+        if (chunks_.empty()) {return false;}
         auto it = std::find_if(chunks_.begin(), chunks_.end(), 
             [&coord](const auto& entry) { return entry.first == coord; });
         
@@ -215,6 +231,8 @@ namespace RollingBonxai
     void DequeChunkStorage::erase(const ChunkCoord& coord) {
         // Swap-and-pop erase: O(1) deletion after O(n) search
         // Check the last element first
+        if (chunks_.empty()) {return; /*a no op*/}
+        
         if (chunks_.back().first == coord) {
             chunks_.pop_back();
             return;
