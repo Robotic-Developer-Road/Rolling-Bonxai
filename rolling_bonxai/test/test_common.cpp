@@ -636,6 +636,615 @@ TEST_F(ChunkTimestampTest, TimeProgressionSimulation) {
     );
     EXPECT_GE(age_ms.count(), 150);
 }
+
+// ============================================================================
+// Managed Chunk Tests
+// ============================================================================
+
+class ManagedChunkTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        test_coord_ = ChunkCoord(1, 2, 3);
+    }
+
+    // Helper function to create a test map
+    std::unique_ptr<Bonxai::OccupancyMap> createTestMap() {
+        Bonxai::Occupancy::OccupancyOptions opt_default;
+        double resolution = 0.2;
+        return std::make_unique<Bonxai::OccupancyMap>(resolution,opt_default);
+    }
+
+    ChunkCoord test_coord_;
+};
+
+// ============================================================================
+// Construction Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, ConstructionWithValidMap) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_EQ(chunk.getConstMap(), map_ptr);
+    EXPECT_EQ(chunk.getChunkCoord(), test_coord_);
+    EXPECT_FALSE(chunk.isDirty());
+    EXPECT_TRUE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, ConstructionWithNullMap) {
+    std::unique_ptr<Bonxai::OccupancyMap> null_map = nullptr;
+    
+    ManagedChunk chunk(std::move(null_map), test_coord_, false);
+    
+    EXPECT_EQ(chunk.getConstMap(), nullptr);
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, ConstructionMarkedDirty) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    EXPECT_TRUE(chunk.isDirty());
+    EXPECT_TRUE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, ConstructionMarkedClean) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+}
+
+
+// ============================================================================
+// Move Semantics Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, MoveConstructor) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk1(std::move(map), test_coord_, true);
+    ManagedChunk chunk2(std::move(chunk1));
+    
+    // chunk2 should have ownership
+    EXPECT_EQ(chunk2.getConstMap(), map_ptr);
+    EXPECT_EQ(chunk2.getChunkCoord(), test_coord_);
+    EXPECT_TRUE(chunk2.isDirty());
+    EXPECT_TRUE(chunk2.isMapValid());
+    
+    // chunk1 should be in moved-from state (map is nullptr)
+    EXPECT_FALSE(chunk1.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, MoveAssignment) {
+    auto map1 = createTestMap();
+    auto map2 = createTestMap();
+    auto* map2_ptr = map2.get();
+    
+    ChunkCoord coord1(1, 1, 1);
+    ChunkCoord coord2(2, 2, 2);
+    
+    ManagedChunk chunk1(std::move(map1), coord1, false);
+    ManagedChunk chunk2(std::move(map2), coord2, true);
+    
+    // Move assign chunk2 to chunk1
+    chunk1 = std::move(chunk2);
+    
+    // chunk1 should now have chunk2's data
+    EXPECT_EQ(chunk1.getConstMap(), map2_ptr);
+    EXPECT_EQ(chunk1.getChunkCoord(), coord2);
+    EXPECT_TRUE(chunk1.isDirty());
+    EXPECT_TRUE(chunk1.isMapValid());
+    
+    // chunk2 should be in moved-from state
+    EXPECT_FALSE(chunk2.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, MoveAssignmentSelfAssignment) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    // Self-assignment should be safe
+    chunk = std::move(chunk);
+    
+    // State should be unchanged
+    EXPECT_EQ(chunk.getConstMap(), map_ptr);
+    EXPECT_EQ(chunk.getChunkCoord(), test_coord_);
+    EXPECT_TRUE(chunk.isDirty());
+    EXPECT_TRUE(chunk.isMapValid());
+}
+
+// ============================================================================
+// Map Access Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, GetConstMapReadOnly) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    const Bonxai::OccupancyMap* const_map = chunk.getConstMap();
+    
+    EXPECT_EQ(const_map, map_ptr);
+    EXPECT_FALSE(chunk.isDirty()); // Should NOT mark dirty
+}
+
+TEST_F(ManagedChunkTest, GetMutableMapMarksDirty) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+    
+    Bonxai::OccupancyMap* mutable_map = chunk.getMutableMap();
+    
+    EXPECT_NE(mutable_map, nullptr);
+    EXPECT_TRUE(chunk.isDirty()); // Should mark dirty
+}
+
+TEST_F(ManagedChunkTest, MultipleGetMutableMapCalls) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    Bonxai::OccupancyMap* ptr1 = chunk.getMutableMap();
+    Bonxai::OccupancyMap* ptr2 = chunk.getMutableMap();
+    
+    EXPECT_EQ(ptr1, map_ptr);
+    EXPECT_EQ(ptr2, map_ptr);
+    EXPECT_TRUE(chunk.isDirty());
+}
+
+// ============================================================================
+// Dirty Tracking Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, DirtyFlagInitiallyClean) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+}
+
+TEST_F(ManagedChunkTest, DirtyFlagInitiallyDirty) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    EXPECT_TRUE(chunk.isDirty());
+}
+
+TEST_F(ManagedChunkTest, MarkDirtyWhenClean) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+    
+    chunk.markDirty();
+    
+    EXPECT_TRUE(chunk.isDirty());
+}
+
+TEST_F(ManagedChunkTest, MarkDirtyWhenAlreadyDirty) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    EXPECT_TRUE(chunk.isDirty());
+    
+    chunk.markDirty();
+    
+    EXPECT_TRUE(chunk.isDirty());
+}
+
+TEST_F(ManagedChunkTest, MarkCleanWhenDirty) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    EXPECT_TRUE(chunk.isDirty());
+    
+    chunk.markClean();
+    
+    EXPECT_FALSE(chunk.isDirty());
+}
+
+TEST_F(ManagedChunkTest, MarkCleanWhenAlreadyClean) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+    
+    chunk.markClean();
+    
+    EXPECT_FALSE(chunk.isDirty());
+}
+
+TEST_F(ManagedChunkTest, DirtyFlagToggling) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+    
+    chunk.markDirty();
+    EXPECT_TRUE(chunk.isDirty());
+    
+    chunk.markClean();
+    EXPECT_FALSE(chunk.isDirty());
+    
+    chunk.markDirty();
+    EXPECT_TRUE(chunk.isDirty());
+}
+
+// ============================================================================
+// Coordinate Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, GetChunkCoord) {
+    auto map = createTestMap();
+    ChunkCoord coord(5, 10, 15);
+    
+    ManagedChunk chunk(std::move(map), coord, false);
+    
+    ChunkCoord retrieved = chunk.getChunkCoord();
+    
+    EXPECT_EQ(retrieved.x, 5);
+    EXPECT_EQ(retrieved.y, 10);
+    EXPECT_EQ(retrieved.z, 15);
+}
+
+TEST_F(ManagedChunkTest, GetChunkCoordStr) {
+    auto map = createTestMap();
+    ChunkCoord coord(1, 2, 3);
+    
+    ManagedChunk chunk(std::move(map), coord, false);
+    
+    std::string coord_str = chunk.getChunkCoordStr();
+    
+    EXPECT_EQ(coord_str, "(1,2,3)");
+}
+
+TEST_F(ManagedChunkTest, GetChunkCoordStrNegativeCoords) {
+    auto map = createTestMap();
+    ChunkCoord coord(-5, -10, -15);
+    
+    ManagedChunk chunk(std::move(map), coord, false);
+    
+    std::string coord_str = chunk.getChunkCoordStr();
+    
+    EXPECT_EQ(coord_str, "(-5,-10,-15)");
+}
+
+// ============================================================================
+// Ownership Transfer Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, TransferMapOwnership) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    EXPECT_TRUE(chunk.isDirty());
+    EXPECT_TRUE(chunk.isMapValid());
+    
+    auto transferred_map = chunk.transferMapOwnership();
+    
+    EXPECT_EQ(transferred_map.get(), map_ptr);
+    EXPECT_FALSE(chunk.isDirty()); // Should be marked clean
+    EXPECT_FALSE(chunk.isMapValid()); // Map should be null
+    EXPECT_EQ(chunk.getConstMap(), nullptr);
+}
+
+TEST_F(ManagedChunkTest, TransferMapOwnershipFromNullMap) {
+    std::unique_ptr<Bonxai::OccupancyMap> null_map = nullptr;
+    
+    ManagedChunk chunk(std::move(null_map), test_coord_, false);
+    
+    auto transferred_map = chunk.transferMapOwnership();
+    
+    EXPECT_EQ(transferred_map, nullptr);
+    EXPECT_FALSE(chunk.isDirty());
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, TransferMapOwnershipTwice) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    auto transferred1 = chunk.transferMapOwnership();
+    EXPECT_NE(transferred1, nullptr);
+    EXPECT_FALSE(chunk.isMapValid());
+    
+    // Second transfer should give null
+    auto transferred2 = chunk.transferMapOwnership();
+    EXPECT_EQ(transferred2, nullptr);
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+// ============================================================================
+// Map Validity Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, IsMapValidWithValidMap) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_TRUE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, IsMapValidWithNullMap) {
+    std::unique_ptr<Bonxai::OccupancyMap> null_map = nullptr;
+    
+    ManagedChunk chunk(std::move(null_map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, IsMapValidAfterTransfer) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_TRUE(chunk.isMapValid());
+    
+    auto mapptr = chunk.transferMapOwnership();
+    
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, DoesMoveLeaveOtherChunkWithInvalidMap) {
+    auto map1 = createTestMap();
+    auto map2 = createTestMap();
+
+    ManagedChunk chunk1(std::move(map1), test_coord_, true);
+    ManagedChunk chunk2(std::move(map2), test_coord_, false);
+
+    // Initially, both are valid
+    EXPECT_TRUE(chunk1.isMapValid());
+    EXPECT_TRUE(chunk2.isMapValid());
+
+    //Now Lets say Chunk2 gives up ownership of its map
+    auto map2ptr = chunk2.transferMapOwnership();
+    EXPECT_FALSE(chunk2.isMapValid());
+
+    // Then, chunk1 is moved into chunk2
+    chunk2 = std::move(chunk1);
+    // Causing chunk2 to become valid
+    EXPECT_TRUE(chunk2.isMapValid());
+    EXPECT_TRUE(chunk2.isDirty());
+
+    // And now, chunk 1 must be left in an invalid statue
+    EXPECT_FALSE(chunk1.isMapValid());
+}
+
+// ============================================================================
+// Thread Safety Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, ConcurrentDirtyFlagAccess) {
+    auto map = createTestMap();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    std::atomic<int> mark_dirty_count{0};
+    std::atomic<int> mark_clean_count{0};
+    std::atomic<int> check_count{0};
+    
+    const int num_threads = 10;
+    const int operations_per_thread = 1000;
+    
+    auto worker = [&](int id) {
+        for (int i = 0; i < operations_per_thread; ++i) {
+            if (id % 3 == 0) {
+                chunk.markDirty();
+                mark_dirty_count++;
+            } else if (id % 3 == 1) {
+                chunk.markClean();
+                mark_clean_count++;
+            } else {
+                bool is_dirty = chunk.isDirty();
+                (void)is_dirty; // Use the value
+                check_count++;
+            }
+        }
+    };
+    
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(worker, i);
+    }
+    
+    for (auto& t : threads) {
+        t.join();
+    }
+    
+    // Test that all operations completed without crashes
+    EXPECT_GT(mark_dirty_count.load(), 0);
+    EXPECT_GT(mark_clean_count.load(), 0);
+    EXPECT_GT(check_count.load(), 0);
+    
+    // Final state should be consistent (either clean or dirty)
+    bool final_dirty = chunk.isDirty();
+    EXPECT_TRUE(final_dirty || !final_dirty); // Just check it's a valid bool
+}
+
+TEST_F(ManagedChunkTest, ConcurrentGetMutableMap) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    const int num_threads = 10;
+    std::vector<std::thread> threads;
+    std::atomic<int> access_count{0};
+    
+    auto worker = [&]() {
+        for (int i = 0; i < 100; ++i) {
+            Bonxai::OccupancyMap* ptr = chunk.getMutableMap();
+            EXPECT_EQ(ptr, map_ptr);
+            access_count++;
+        }
+    };
+    
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(worker);
+    }
+    
+    for (auto& t : threads) {
+        t.join();
+    }
+    
+    EXPECT_EQ(access_count.load(), num_threads * 100);
+    EXPECT_TRUE(chunk.isDirty()); // Should be marked dirty
+}
+
+TEST_F(ManagedChunkTest, ConcurrentReadAccess) {
+    auto map = createTestMap();
+    auto* map_ptr = map.get();
+    
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    const int num_threads = 10;
+    std::vector<std::thread> threads;
+    std::atomic<int> read_count{0};
+    
+    auto worker = [&]() {
+        for (int i = 0; i < 100; ++i) {
+            const Bonxai::OccupancyMap* ptr = chunk.getConstMap();
+            EXPECT_EQ(ptr, map_ptr);
+            read_count++;
+        }
+    };
+    
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(worker);
+    }
+    
+    for (auto& t : threads) {
+        t.join();
+    }
+    
+    EXPECT_EQ(read_count.load(), num_threads * 100);
+    EXPECT_FALSE(chunk.isDirty()); // Should NOT be marked dirty
+}
+
+// ============================================================================
+// Integration Tests
+// ============================================================================
+
+TEST_F(ManagedChunkTest, TypicalWorkflow) {
+    // 1. Create chunk (clean from disk)
+    auto map = createTestMap();
+    ManagedChunk chunk(std::move(map), test_coord_, false);
+    
+    EXPECT_FALSE(chunk.isDirty());
+    EXPECT_TRUE(chunk.isMapValid());
+    
+    // 2. Read-only access
+    const Bonxai::OccupancyMap* const_map = chunk.getConstMap();
+    EXPECT_NE(const_map, nullptr);
+    EXPECT_FALSE(chunk.isDirty());
+    
+    // 3. Modify the chunk
+    Bonxai::OccupancyMap* mutable_map = chunk.getMutableMap();
+    EXPECT_NE(mutable_map, nullptr);
+    EXPECT_TRUE(chunk.isDirty());
+    
+    // 4. Save (transfer ownership)
+    auto map_for_save = chunk.transferMapOwnership();
+    EXPECT_NE(map_for_save, nullptr);
+    EXPECT_FALSE(chunk.isDirty());
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+TEST_F(ManagedChunkTest, NewChunkWorkflow) {
+    // 1. Create new chunk (dirty)
+    auto map = createTestMap();
+    ManagedChunk chunk(std::move(map), test_coord_, true);
+    
+    EXPECT_TRUE(chunk.isDirty());
+    EXPECT_TRUE(chunk.isMapValid());
+    
+    // 2. Modify
+    Bonxai::OccupancyMap* mutable_map = chunk.getMutableMap();
+    auto &accessor = mutable_map->getAccessor();
+    Bonxai::CoordT coord;
+    coord.x = 0; coord.y = 0 , coord.z = 10;
+    Bonxai::Occupancy::CellOcc occ;
+    accessor.setValue(coord,occ);
+    EXPECT_TRUE(chunk.isDirty());
+    
+    // 3. Save
+    auto map_for_save = chunk.transferMapOwnership();
+    EXPECT_NE(map_for_save, nullptr);
+    EXPECT_FALSE(chunk.isDirty());
+    EXPECT_FALSE(chunk.isMapValid());
+}
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+TEST_F(ManagedChunkTest, GetMutableMapOnNullMap) {
+    std::unique_ptr<Bonxai::OccupancyMap> null_map = nullptr;
+    
+    ManagedChunk chunk(std::move(null_map), test_coord_, false);
+    
+    Bonxai::OccupancyMap* ptr = chunk.getMutableMap();
+    
+    EXPECT_EQ(ptr, nullptr);
+    EXPECT_TRUE(chunk.isDirty()); // Still marks dirty even if map is null
+}
+
+TEST_F(ManagedChunkTest, GetConstMapOnNullMap) {
+    std::unique_ptr<Bonxai::OccupancyMap> null_map = nullptr;
+    
+    ManagedChunk chunk(std::move(null_map), test_coord_, false);
+    
+    const Bonxai::OccupancyMap* ptr = chunk.getConstMap();
+    
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(ManagedChunkTest, ZeroCoordinates) {
+    auto map = createTestMap();
+    ChunkCoord zero_coord(0, 0, 0);
+    
+    ManagedChunk chunk(std::move(map), zero_coord, false);
+    
+    EXPECT_EQ(chunk.getChunkCoord(), zero_coord);
+    EXPECT_EQ(chunk.getChunkCoordStr(), "(0,0,0)");
+}
+
+TEST_F(ManagedChunkTest, LargeCoordinates) {
+    auto map = createTestMap();
+    ChunkCoord large_coord(1000000, -1000000, 999999);
+    
+    ManagedChunk chunk(std::move(map), large_coord, false);
+    
+    ChunkCoord retrieved = chunk.getChunkCoord();
+    EXPECT_EQ(retrieved.x, 1000000);
+    EXPECT_EQ(retrieved.y, -1000000);
+    EXPECT_EQ(retrieved.z, 999999);
+}
+
+
 // ============================================================================
 // Main Function
 // ============================================================================
