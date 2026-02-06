@@ -164,6 +164,26 @@ if(BUILD_TESTING)
     bonxai_map
   )
 
+    ## File Storage Backend tests
+  ament_add_gtest(test_file_storage_backend
+    test/test_file_storage_backend.cpp
+  )
+
+  target_include_directories(test_file_storage_backend PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_file_storage_backend
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_file_storage_backend
+    Eigen3
+    bonxai_core
+    bonxai_map
+  )
+
 endif()
 
 # ============================================================================
