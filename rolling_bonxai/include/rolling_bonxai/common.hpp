@@ -17,6 +17,7 @@ namespace RollingBonxai
  * Intended for future velocity-based features (e.g., predictive preloading).
  */
 using LinearVelocity3D = Eigen::Vector3d;
+using Position3D = Eigen::Vector3d;
 
 /**
  * @brief Chunk coordinate in grid space using center-origin convention
