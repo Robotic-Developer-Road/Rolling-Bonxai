@@ -188,11 +188,11 @@ TransitionState TransitionManager::computeStateIfSameChunk(
     double dist_to_boundary = csys_.distanceToBoundary(context.ego_position, chunk_coord);
 
     // Determine state based on proximity to boundary
-    if (dist_to_boundary > hysteresis_zone) {
+    if (dist_to_boundary >= hysteresis_zone) {
         // Far from any boundary - stable operation
         return TransitionState::STABLE_SOURCE;
     }
-    else if (dist_to_boundary > 0) {
+    else if (dist_to_boundary >= 0 && dist_to_boundary < hysteresis_zone){
         // Close to boundary but still inside chunk
         return TransitionState::HYSTERESIS_SOURCE;
     }

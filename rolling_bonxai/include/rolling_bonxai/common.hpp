@@ -181,7 +181,7 @@ public:
     /**
      * @brief
      */
-    explicit ManagedChunk(MapUPtr map, ChunkCoord& chunk_coordinate, bool dirty = false);
+    explicit ManagedChunk(MapUPtr map, const ChunkCoord& chunk_coordinate, bool dirty = false);
 
     /**
      * @brief
@@ -264,7 +264,6 @@ private:
 
     /// @brief Threadsafe dirty tracking, true means it has been updated before since its last load
     std::atomic<bool> is_dirty_;
-
 };
 
 

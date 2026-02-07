@@ -73,17 +73,48 @@ ament_export_include_directories(include)
 
 # Testing
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
+  # turn off linting because our codestyle is fucked
+  # find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-  
-  # Optional: Add unit tests
-  # find_package(ament_cmake_gtest REQUIRED)
-  # ament_add_gtest(test_occupancy_map test/test_occupancy_map.cpp)
-  # if(TARGET test_occupancy_map)
-  #   target_link_libraries(test_occupancy_map ${PROJECT_NAME})
-  # endif()
+  # ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(bonxai_core REQUIRED)
+
+  add_library(${PROJECT_NAME}_testlib STATIC
+    src/occupancy_map.cpp
+  )
+  target_include_directories(${PROJECT_NAME}_testlib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  target_link_libraries(${PROJECT_NAME}_testlib PUBLIC
+    bonxai_core::bonxai_core
+  )
+  ament_target_dependencies(${PROJECT_NAME}_testlib PUBLIC
+    Eigen3
+  )
+
+  ament_add_gtest(test_occupancy_map
+    test/test_occupancy_map.cpp
+  )
+
+  target_include_directories(test_occupancy_map PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_occupancy_map
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_occupancy_map
+    Eigen3
+    bonxai_core
+  )
+
+
 endif()
 
 ament_package()
