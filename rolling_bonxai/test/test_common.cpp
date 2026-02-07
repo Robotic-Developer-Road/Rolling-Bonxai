@@ -567,7 +567,7 @@ TEST_F(ChunkTimestampTest, MaxInt64Timestamp) {
     timestamp.creation_time_ns = INT64_MAX;
     
     // Should not crash or overflow
-    auto time_point = timestamp.getCreationTime();
+    [[maybe_unused]] auto time_point = timestamp.getCreationTime();
     
     // This is far in the future, age will be negative when cast
     // (implementation-defined behavior, but should not crash)

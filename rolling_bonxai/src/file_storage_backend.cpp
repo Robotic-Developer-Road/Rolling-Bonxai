@@ -91,7 +91,7 @@ FileStorageBackend::load(const ChunkCoord& coord) {
         chunk_file.close();
         
         // Update timestamp (accessed time and count)
-        bool update_access_ok = updateAccessTime(coord);
+        [[maybe_unused]] bool update_access_ok = updateAccessTime(coord);
 
         // 
         

@@ -27,9 +27,10 @@ add_library(${PROJECT_NAME} SHARED
   src/common.cpp
   src/coordinate_system.cpp
   src/chunk_storage.cpp
+  src/transition_manager.cpp
   src/chunk_loading_policies.cpp
   src/file_storage_backend.cpp
-  src/transition_manager.cpp
+  src/async_chunk_manager.cpp
 )
 
 # Set C++17 standard
@@ -108,9 +109,9 @@ if(BUILD_TESTING)
     src/common.cpp
     src/coordinate_system.cpp
     src/chunk_storage.cpp
+    src/transition_manager.cpp
     src/chunk_loading_policies.cpp
     src/file_storage_backend.cpp
-    src/transition_manager.cpp
   )
 
   target_include_directories(${PROJECT_NAME}_testlib PUBLIC

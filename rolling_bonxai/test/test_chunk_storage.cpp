@@ -170,7 +170,7 @@ TEST(VectorChunkStorage, Iteration) {
     
     // Mutable iteration
     size_t count = 0;
-    storage.forEachChunk([&](const ChunkCoord& coord, ManagedChunk& chunk) {
+    storage.forEachChunk([&]([[maybe_unused]] const ChunkCoord& coord, ManagedChunk& chunk) {
         EXPECT_NE(chunk.getMutableMap(), nullptr);
         count++;
     });
@@ -179,7 +179,7 @@ TEST(VectorChunkStorage, Iteration) {
     // Const iteration
     count = 0;
     const VectorChunkStorage& const_storage = storage;
-    const_storage.forEachChunk([&](const ChunkCoord& coord, const ManagedChunk& chunk) {
+    const_storage.forEachChunk([&]([[maybe_unused]] const ChunkCoord& coord, const ManagedChunk& chunk) {
         EXPECT_NE(chunk.getConstMap(), nullptr);
         count++;
     });
@@ -321,7 +321,7 @@ TEST(HashMapChunkStorage, Iteration) {
     
     // Mutable iteration
     size_t count = 0;
-    storage.forEachChunk([&](const ChunkCoord& coord, ManagedChunk& chunk) {
+    storage.forEachChunk([&]([[maybe_unused]] const ChunkCoord& coord,[[maybe_unused]] ManagedChunk& chunk) {
         count++;
     });
     EXPECT_EQ(count, coords.size());
@@ -329,7 +329,7 @@ TEST(HashMapChunkStorage, Iteration) {
     // Const iteration
     count = 0;
     const HashMapChunkStorage& const_storage = storage;
-    const_storage.forEachChunk([&](const ChunkCoord& coord, const ManagedChunk& chunk) {
+    const_storage.forEachChunk([&]([[maybe_unused]] const ChunkCoord& coord, [[maybe_unused]] const ManagedChunk& chunk) {
         count++;
     });
     EXPECT_EQ(count, coords.size());
@@ -463,7 +463,7 @@ TEST(DequeChunkStorage, Iteration) {
     
     // Mutable iteration
     size_t count = 0;
-    storage.forEachChunk([&](const ChunkCoord& coord, ManagedChunk& chunk) {
+    storage.forEachChunk([&]([[maybe_unused]] const ChunkCoord& coord, [[maybe_unused]] ManagedChunk& chunk) {
         count++;
     });
     EXPECT_EQ(count, coords.size());
@@ -471,7 +471,7 @@ TEST(DequeChunkStorage, Iteration) {
     // Const iteration
     count = 0;
     const DequeChunkStorage& const_storage = storage;
-    const_storage.forEachChunk([&](const ChunkCoord& coord, const ManagedChunk& chunk) {
+    const_storage.forEachChunk([&]([[maybe_unused]] const ChunkCoord& coord, [[maybe_unused]] const ManagedChunk& chunk) {
         count++;
     });
     EXPECT_EQ(count, coords.size());
