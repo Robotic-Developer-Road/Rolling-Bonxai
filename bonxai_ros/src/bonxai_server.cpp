@@ -41,9 +41,7 @@ void BonxaiServer::load_parameters()
   RCLCPP_INFO(get_logger(), "Loading parameters...");
   
   // --- Core map parameters ---
-  params_.resolution =
-    this->declare_parameter<double>("resolution", 0.05);
-    
+
   params_.frame_id =
     this->declare_parameter<std::string>("frame_id", "map");
     
@@ -52,17 +50,20 @@ void BonxaiServer::load_parameters()
     
   params_.topic_in =
     this->declare_parameter<std::string>("topic_in", "/points");
+
+  params_.resolution =
+    this->declare_parameter<double>("occupancy.resolution", 0.05);
   
   // --- Occupancy z-bounds ---
   params_.occupancy_min_z =
-    this->declare_parameter<double>("occupancy_min_z", -1.0);
+    this->declare_parameter<double>("occupancy.occupancy_min_z", -1.0);
     
   params_.occupancy_max_z =
-    this->declare_parameter<double>("occupancy_max_z", 2.0);
+    this->declare_parameter<double>("occupancy.occupancy_max_z", 2.0);
 
   // --- Occupancy Threshold ---
   params_.occupancy_threshold =
-    this->declare_parameter<double>("occupancy_threshold", 0.50);
+    this->declare_parameter<double>("occupancy.occupancy_threshold", 0.50);
   
   // --- Sensor model parameters ---
   params_.sensor_max_range =
@@ -84,7 +85,7 @@ void BonxaiServer::load_parameters()
   params_.cleanup_interval_sec =
     this->declare_parameter<double>("server.cleanup_interval_sec", 300.0);
   
-  // --- Statostocs ---
+  // --- Statostics ---
   params_.enable_stats =
     this->declare_parameter<bool>("stats.enable_stats", true);
     

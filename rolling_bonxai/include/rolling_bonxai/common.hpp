@@ -19,6 +19,20 @@ namespace RollingBonxai
 using LinearVelocity3D = Eigen::Vector3d;
 using Position3D = Eigen::Vector3d;
 
+struct MapParams
+{
+  double resolution{0.0};
+  double occupancy_min_z{0.0};
+  double occupancy_max_z{0.0};
+  double occupancy_threshold{0.50};
+
+  double sensor_max_range{0.0};
+  double sensor_hit{0.0};
+  double sensor_miss{0.0};
+  double sensor_min{0.0};
+  double sensor_max{0.0};
+};
+
 /**
  * @brief Chunk coordinate in grid space using center-origin convention
  * 

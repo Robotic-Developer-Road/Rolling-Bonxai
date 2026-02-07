@@ -400,6 +400,19 @@ void OccupancyMap::updateFreeCells(const Vector3D& origin) {
     incrementUpdateCount();
 }
 
+void OccupancyMap::updateFreeCellsNoRayTrace() {
+    if (hit_coords_.empty() && miss_coords_.empty()) {
+        return;
+    }
+
+    // Clear these bad boys
+    hit_coords_.clear();
+    miss_coords_.clear();
+
+    // Increment update count
+    incrementUpdateCount();
+}
+
 void OccupancyMap::incrementUpdateCount() noexcept {
     if (++update_count_ == 4) {
         update_count_ = 1;

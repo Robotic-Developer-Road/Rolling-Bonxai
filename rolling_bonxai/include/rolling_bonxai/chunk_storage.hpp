@@ -90,7 +90,12 @@ public:
     /**
      * @brief Construct with initial capacity of 27 (typical neighborhood size).
      */
-    VectorChunkStorage(size_t capacity_hint = 27);
+    VectorChunkStorage();
+    
+    /**
+     * @brief Construct with initial capacity of n (typical neighborhood size).
+     */
+    VectorChunkStorage(size_t capacity_hint);
 
     /**
      * @brief Destructor
@@ -190,6 +195,11 @@ class HashMapChunkStorage final : public ChunkStorage
 public:
     /**
      * @brief Construct with initial bucket count for ~27 chunks.
+     */
+    HashMapChunkStorage();
+
+    /**
+     * @brief Construct with initial bucket count for ~n chunks.
      */
     HashMapChunkStorage(size_t capacity_hint);
 
