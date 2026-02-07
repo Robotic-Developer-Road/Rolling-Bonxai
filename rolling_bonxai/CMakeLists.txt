@@ -29,6 +29,7 @@ add_library(${PROJECT_NAME} SHARED
   src/chunk_storage.cpp
   src/chunk_loading_policies.cpp
   src/file_storage_backend.cpp
+  src/transition_manager.cpp
 )
 
 # Set C++17 standard
@@ -109,6 +110,7 @@ if(BUILD_TESTING)
     src/chunk_storage.cpp
     src/chunk_loading_policies.cpp
     src/file_storage_backend.cpp
+    src/transition_manager.cpp
   )
 
   target_include_directories(${PROJECT_NAME}_testlib PUBLIC
@@ -221,6 +223,26 @@ if(BUILD_TESTING)
   )
 
   ament_target_dependencies(test_chunk_loading_policy
+    Eigen3
+    bonxai_core
+    bonxai_map
+  )
+
+  ## Transition manager tests
+  ament_add_gtest(test_transition_manager
+    test/test_transition_manager.cpp
+  )
+
+  target_include_directories(test_transition_manager PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(test_transition_manager
+    ${PROJECT_NAME}_testlib  # Link against the static library
+  )
+
+  ament_target_dependencies(test_transition_manager
     Eigen3
     bonxai_core
     bonxai_map
