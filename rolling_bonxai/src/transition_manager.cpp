@@ -121,7 +121,6 @@ double TransitionManager::calculateBoundaryPenetration(
 
     // Get center positions of both chunks
     Position3D source_center = csys_.chunkToPositionCoordinate(reference_chunk);
-    Position3D next_center = csys_.chunkToPositionCoordinate(next_chunk);
 
     // Determine which axes changed between chunks
     ChunkCoord diff = next_chunk - reference_chunk;

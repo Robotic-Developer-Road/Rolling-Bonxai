@@ -93,7 +93,6 @@ TEST_F(TransitionManagerTest, InitializationOffCenter) {
     auto ctx = makeContext(15.0, 7.0, -3.0);
     bool triggered = tm_->shouldTriggerTransition(ctx);
     
-    auto tstate = tm_->getRefTransitionState();
     EXPECT_TRUE(triggered);
     EXPECT_EQ(tm_->getRefTransitionState(), TransitionState::HYSTERESIS_SOURCE);
     

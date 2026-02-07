@@ -162,7 +162,7 @@ TEST(ChunkCoordinateSystem, ForEachNeighbourRadius2) {
     ChunkCoord center(0, 0, 0);
     
     int count = 0;
-    cs.forEachNeighbour(center, 2, [&count](const ChunkCoord& nb) {
+    cs.forEachNeighbour(center, 2, [&count]([[maybe_unused]] const ChunkCoord& nb) {
         count++;
     });
     

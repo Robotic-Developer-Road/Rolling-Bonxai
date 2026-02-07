@@ -715,7 +715,6 @@ TEST_F(TemporalNeighborhoodPolicyTest, GetPriority_OldChunk_ZeroPriority) {
 TEST_F(TemporalNeighborhoodPolicyTest, GetPriority_AllInRange) {
     TemporalNeighborhoodPolicy policy(2, 0.3, std::chrono::seconds(100));
     
-    auto now = std::chrono::steady_clock::now();
     auto context = createContext();
     
     // All valid priorities should be in [0, 1]
