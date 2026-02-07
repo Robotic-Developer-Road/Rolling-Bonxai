@@ -280,9 +280,6 @@ private:
     ChunkCoord reference_chunk_coord_;  ///< Official chunk assignment
     ChunkCoord previous_chunk_coord_;   ///< Previous official chunk (before last transition)
 
-    // Coordinate system reference
-    ChunkCoordinateSystem& csys_;  ///< Reference to coordinate system for conversions
-
     // State machine
     TransitionState reference_t_state_{TransitionState::UNINITIALIZED};  ///< Current state
     TransitionState previous_t_state_{TransitionState::UNINITIALIZED};   ///< Previous state
@@ -290,6 +287,9 @@ private:
     // Configuration
     double hyst_ratio_{0.10};      ///< Hysteresis threshold as fraction of chunk size
     double preload_ratio_{0.05};   ///< Preload threshold (reserved for V3 predictive loading)
+
+    // Coordinate system reference
+    ChunkCoordinateSystem& csys_;  ///< Reference to coordinate system for conversions
 };
 
 } // namespace RollingBonxai
