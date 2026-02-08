@@ -34,7 +34,7 @@ def generate_launch_description():
             '--compression-mode', 'file',
             '--compression-format', 'zstd',
             '-o', BAG_NAME,
-            *TOPICS,
+            '--topics',*TOPICS,
         ],
         output='screen',
         emulate_tty=True,
