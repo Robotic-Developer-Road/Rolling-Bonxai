@@ -31,6 +31,7 @@ add_library(${PROJECT_NAME} SHARED
   src/chunk_loading_policies.cpp
   src/file_storage_backend.cpp
   src/async_chunk_manager.cpp
+  src/rolling_occupancy_map.cpp
 )
 
 # Set C++17 standard
@@ -112,6 +113,7 @@ if(BUILD_TESTING)
     src/transition_manager.cpp
     src/chunk_loading_policies.cpp
     src/file_storage_backend.cpp
+    src/rolling_occupancy_map.cpp
   )
 
   target_include_directories(${PROJECT_NAME}_testlib PUBLIC

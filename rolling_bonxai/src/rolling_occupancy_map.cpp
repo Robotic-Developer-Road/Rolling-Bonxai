@@ -43,7 +43,7 @@ RollingOccupancyMap::RollingOccupancyMap(const AllParameters& params, std::share
     // Initialise the file storage backend
     std::filesystem::path storage_path(params_.full_save_folder_path);
     storage_backend_ = std::make_unique<FileStorageBackend>(storage_path);
-    storage_backend_->initStorageBackend();
+    [[maybe_unused]] bool storage_ok = storage_backend_->initStorageBackend();
 
     // Create the async I/O manager (takes ownership of storage_backend_)
     asyncio_manager_ = std::make_unique<AsyncChunkManager>(
