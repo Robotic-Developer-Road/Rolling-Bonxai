@@ -8,7 +8,7 @@ using namespace RollingBonxai;
 // ============================================================================
 
 TEST(ChunkCoordinateSystem, OriginMapsToZeroChunk) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     auto chunk = cs.positionToChunkCoordinate(0.0, 0.0, 0.0);
     
     EXPECT_EQ(chunk.x, 0);
@@ -17,7 +17,7 @@ TEST(ChunkCoordinateSystem, OriginMapsToZeroChunk) {
 }
 
 TEST(ChunkCoordinateSystem, ChunkCenters) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     
     auto pos = cs.chunkToPositionCoordinate(ChunkCoord(1, 0, 0));
     EXPECT_DOUBLE_EQ(pos.x(), 10.0);
@@ -31,7 +31,7 @@ TEST(ChunkCoordinateSystem, ChunkCenters) {
 }
 
 TEST(ChunkCoordinateSystem, BoundaryBehavior) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     
     // Position exactly on positive boundary (half-open: [min, max))
     auto chunk1 = cs.positionToChunkCoordinate(5.0, 0.0, 0.0);
@@ -51,7 +51,7 @@ TEST(ChunkCoordinateSystem, BoundaryBehavior) {
 }
 
 TEST(ChunkCoordinateSystem, IsPositionInChunk) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord chunk(0, 0, 0);  // Center at (0,0,0), bounds [-5, 5)
     
     // Inside chunk
@@ -71,7 +71,7 @@ TEST(ChunkCoordinateSystem, IsPositionInChunk) {
 }
 
 TEST(ChunkCoordinateSystem, DistanceToBoundary) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord chunk(0, 0, 0);
     
     // At center: distance = 5.0 (half chunk size)
@@ -92,7 +92,7 @@ TEST(ChunkCoordinateSystem, DistanceToBoundary) {
 }
 
 TEST(ChunkCoordinateSystem, DistanceToBoundaryPerAxis) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord chunk(0, 0, 0);
     
     Eigen::Vector3d pos(2.0, -3.0, 4.0);
@@ -116,7 +116,7 @@ TEST(ChunkCoordinateSystem, DistanceToBoundaryPerAxis) {
 }
 
 TEST(ChunkCoordinateSystem, FaceNeighbours) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord center(0, 0, 0);
     
     auto neighbors = cs.getFaceNeighbours(center);
@@ -132,7 +132,7 @@ TEST(ChunkCoordinateSystem, FaceNeighbours) {
 }
 
 TEST(ChunkCoordinateSystem, AllNeighbours) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord center(5, 10, -3);
     
     auto neighbors = cs.getAllNeighbours(center);
@@ -145,7 +145,7 @@ TEST(ChunkCoordinateSystem, AllNeighbours) {
 }
 
 TEST(ChunkCoordinateSystem, ForEachNeighbourRadius1) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord center(0, 0, 0);
     
     int count = 0;
@@ -158,7 +158,7 @@ TEST(ChunkCoordinateSystem, ForEachNeighbourRadius1) {
 }
 
 TEST(ChunkCoordinateSystem, ForEachNeighbourRadius2) {
-    ChunkCoordinateSystem cs(10.0);
+    ChunkCoordinateSystem cs(0.2,10.0);
     ChunkCoord center(0, 0, 0);
     
     int count = 0;

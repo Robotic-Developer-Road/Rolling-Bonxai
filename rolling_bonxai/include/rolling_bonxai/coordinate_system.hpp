@@ -89,7 +89,7 @@ public:
      * @param chunk_size Size of each chunk cube in meters (must be > 0)
      * @throws std::invalid_argument if chunk_size <= 0 (implementation-dependent)
      */
-    explicit ChunkCoordinateSystem(double chunk_size);
+    explicit ChunkCoordinateSystem(double voxel_resolution,double chunk_size);
 
     /**
      * @brief Convert arbitrary position type to chunk coordinate
@@ -120,6 +120,48 @@ public:
     [[nodiscard]] ChunkCoord positionToChunkCoordinate(double x, double y, double z) const;
 
     /**
+     * @brief Convert arbitrary position type to chunk coordinate
+     * 
+     * Template overload accepting any type convertible via Bonxai::ConvertPoint
+     * (e.g., pcl::PointXYZ, Eigen::Vector3d, custom types with x,y,z fields).
+     * 
+     */
+    template <typename PositionCoordinateT>
+    [[nodiscard]] Bonxai::CoordT positionToVoxelCoordinate(const PositionCoordinateT& position_coordinate) const {
+        // Convert it to a point we can all agree upon
+        Bonxai::Point3D point_to_use = Bonxai::ConvertPoint<Bonxai::Point3D>(position_coordinate);
+        return positionToVoxelCoordinate(point_to_use);
+    }
+
+    /**
+     * @brief Convert world position to voxel coordinate
+     * 
+     * Uses center-origin convention with round-half-away-from-zero for symmetry.
+     * Position (0,0,0) maps to chunk (0,0,0).
+     * 
+     * @param x World X coordinate (meters)
+     * @param y World Y coordinate (meters)
+     * @param z World Z coordinate (meters)
+     * @return Voxel containing the position
+     * 
+     */
+    [[nodiscard]] Bonxai::CoordT positionToVoxelCoordinate(const Bonxai::Point3D& bonxai_3d_pt) const;
+
+    /**
+     * @brief Convert world position to voxel coordinate
+     * 
+     * Uses center-origin convention with round-half-away-from-zero for symmetry.
+     * Position (0,0,0) maps to chunk (0,0,0).
+     * 
+     * @param x World X coordinate (meters)
+     * @param y World Y coordinate (meters)
+     * @param z World Z coordinate (meters)
+     * @return Voxel containing the position
+     * 
+     */
+    [[nodiscard]] Bonxai::CoordT positionToVoxelCoordinate(double x, double y, double z) const;
+
+    /**
      * @brief Convert chunk coordinate to world position (center)
      * 
      * Returns the center position of the specified chunk in world coordinates.
@@ -128,6 +170,16 @@ public:
      * @return 3D position at chunk center (meters)
      */
     [[nodiscard]] Vector3D chunkToPositionCoordinate(const ChunkCoord& chunk_coord) const;
+
+    /**
+     * @brief Convert chunk coordinate to world position (center)
+     * 
+     * Returns the center position of the specified chunk in world coordinates.
+     * 
+     * @param chunk_coord Chunk coordinate
+     * @return 3D position at chunk center (meters)
+     */
+    [[nodiscard]] Vector3D voxelToPositionCoordinate(const Bonxai::CoordT& voxel_coord) const;
 
     /**
      * @brief Get minimum boundary (corner) of chunk as 3D vector
@@ -150,6 +202,18 @@ public:
      * @warning If axis is INDETERMINATE, returns X-axis value as default
      */
     [[nodiscard]] double chunkMinBounds(const ChunkCoord& chunk_coord, const AxisType &axis) const;
+
+    /**
+     * @brief Convert chunk world-space bounds to voxel-space integer bounds
+     * 
+     * Used for the ray-walk boundary-check optimization. Returns the
+     * min (inclusive) and max (exclusive, matching half-open convention)
+     * voxel coordinates for a given chunk.
+     * 
+     * @param chunk Chunk coordinate
+     * @return Pair of {voxel_min, voxel_max} as CoordT
+     */
+    [[nodiscard]] std::pair<Bonxai::CoordT, Bonxai::CoordT> worldBoundsToVoxelBounds(const ChunkCoord& chunk) const;
 
     /**
      * @brief Get maximum boundary (corner) of chunk as 3D vector
@@ -344,6 +408,8 @@ public:
     [[nodiscard]] static int32_t roundToInt(double val);
 
 private:
+    double voxel_resolution_;
+    double voxel_inv_resolution_;
     double chunk_size_;       ///< Size of each chunk cube (meters)
     double chunk_size_half_;  ///< Cached half chunk size (meters)
     Vector3D half_chunk_vec;  ///< Cached half-size vector for boundary calculations

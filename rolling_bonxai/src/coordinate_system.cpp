@@ -6,7 +6,9 @@ namespace RollingBonxai
 // ============================================================================
 // Coordinate System Impl
 // ============================================================================
-ChunkCoordinateSystem::ChunkCoordinateSystem(double chunk_size) {
+ChunkCoordinateSystem::ChunkCoordinateSystem(double voxel_resolution,double chunk_size) {
+    voxel_resolution_ = voxel_resolution;
+    voxel_inv_resolution_ = 1.0 / voxel_resolution_;
     chunk_size_ = chunk_size;
     chunk_size_half_ = chunk_size / 2.0;
     half_chunk_vec = Vector3D(chunk_size_half_,chunk_size_half_,chunk_size_half_);
@@ -16,10 +18,25 @@ ChunkCoord ChunkCoordinateSystem::positionToChunkCoordinate(double x, double y, 
     return {roundToInt(x / chunk_size_),roundToInt(y / chunk_size_),roundToInt(z / chunk_size_)};
 }
 
+Bonxai::CoordT ChunkCoordinateSystem::positionToVoxelCoordinate(const Bonxai::Point3D& bonxai_3d_pt) const {
+    return Bonxai::PosToCoord(bonxai_3d_pt,voxel_inv_resolution_);
+}
+
+Bonxai::CoordT ChunkCoordinateSystem::positionToVoxelCoordinate(double x, double y, double z) const {
+    const auto p3d = Bonxai::ConvertPoint<Bonxai::Point3D>(Eigen::Vector3d(x,y,z));
+    return positionToVoxelCoordinate(p3d);
+}
+
 ChunkCoordinateSystem::Vector3D ChunkCoordinateSystem::chunkToPositionCoordinate(const ChunkCoord& chunk_coord) const {
     return Vector3D(chunk_coord.x * chunk_size_,
                     chunk_coord.y * chunk_size_,
                     chunk_coord.z * chunk_size_);
+}
+
+ChunkCoordinateSystem::Vector3D ChunkCoordinateSystem::voxelToPositionCoordinate(const Bonxai::CoordT& voxel_coord) const {
+    auto p3d_ret = Bonxai::CoordToPos(voxel_coord,voxel_resolution_);
+    Vector3D vec_to_ret = Bonxai::ConvertPoint<Vector3D>(p3d_ret);
+    return vec_to_ret;
 }
 
 ChunkCoordinateSystem::Vector3D ChunkCoordinateSystem::chunkMinBounds(const ChunkCoord& chunk_coord) const {
@@ -72,6 +89,18 @@ double ChunkCoordinateSystem::chunkMaxBounds(const ChunkCoord& chunk_coord, cons
     else {
         return coordinate.x();
     }
+}
+
+std::pair<Bonxai::CoordT, Bonxai::CoordT> 
+ChunkCoordinateSystem::worldBoundsToVoxelBounds(const ChunkCoord& chunk) const
+{
+    const Vector3D world_min = this->chunkMinBounds(chunk);
+    const Vector3D world_max = this->chunkMaxBounds(chunk);
+
+    Bonxai::CoordT voxel_min = this->positionToVoxelCoordinate(world_min);
+    Bonxai::CoordT voxel_max = this->positionToVoxelCoordinate(world_max);
+
+    return {voxel_min, voxel_max};
 }
 
 double ChunkCoordinateSystem::getChunkSize() const {
