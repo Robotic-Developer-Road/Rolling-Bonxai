@@ -2,6 +2,14 @@
 
 #include <tf2/exceptions.h>
 
+namespace
+{
+inline double bytesToMiB(std::size_t bytes)
+{
+  return static_cast<double>(bytes) / (1024.0 * 1024.0);
+}
+}
+
 namespace RollingBonxai
 {
 
@@ -15,20 +23,16 @@ RollingBonxaiServer::RollingBonxaiServer(
   initMap();
   initSubscriber();
   initStatsPublishers();
+  initChunkVisualization();
 
   RCLCPP_INFO(get_logger(), "RollingBonxaiServer started");
 }
 
 void RollingBonxaiServer::loadParameters()
 {
-  server_params_.frame_id =
-    declare_parameter<std::string>("frame_id", "map");
-
-  server_params_.base_frame_id =
-    declare_parameter<std::string>("base_frame_id", "base_footprint");
-
-  server_params_.topic_in =
-    declare_parameter<std::string>("topic_in", "/points");
+  server_params_.frame_id = declare_parameter<std::string>("frame_id", "map");
+  server_params_.base_frame_id = declare_parameter<std::string>("base_frame_id", "base_footprint");
+  server_params_.topic_in = declare_parameter<std::string>("topic_in", "/points");
 
   server_params_.cleanup_interval_sec =
     declare_parameter<double>("server.cleanup_interval_sec", 300.0);
@@ -45,86 +49,54 @@ void RollingBonxaiServer::loadParameters()
   server_params_.stats_publish_rate =
     declare_parameter<double>("stats.publish_rate", 1.0);
 
-  // ---- RollingOccupancyMap parameters ----
-
   auto& mp = rolling_params_.map_params;
 
-  mp.resolution =
-    declare_parameter<double>("occupancy.resolution", 0.05);
+  mp.resolution = declare_parameter<double>("occupancy.resolution", 0.05);
+  mp.occupancy_min_z = declare_parameter<double>("occupancy.occupancy_min_z", -100.0);
+  mp.occupancy_max_z = declare_parameter<double>("occupancy.occupancy_max_z", 100.0);
+  mp.occupancy_threshold = declare_parameter<double>("occupancy.occupancy_threshold", 0.5);
 
-  mp.occupancy_min_z =
-    declare_parameter<double>("occupancy.occupancy_min_z", -100.0);
-
-  mp.occupancy_max_z =
-    declare_parameter<double>("occupancy.occupancy_max_z", 100.0);
-
-  mp.occupancy_threshold =
-    declare_parameter<double>("occupancy.occupancy_threshold", 0.5);
-
-  mp.sensor_max_range =
-    declare_parameter<double>("sensor_model.max_range", 30.0);
-
-  mp.sensor_hit =
-    declare_parameter<double>("sensor_model.hit", 0.7);
-
-  mp.sensor_miss =
-    declare_parameter<double>("sensor_model.miss", 0.4);
-
-  mp.sensor_min =
-    declare_parameter<double>("sensor_model.min", 0.12);
-
-  mp.sensor_max =
-    declare_parameter<double>("sensor_model.max", 0.97);
+  mp.sensor_max_range = declare_parameter<double>("sensor_model.max_range", 30.0);
+  mp.sensor_hit = declare_parameter<double>("sensor_model.hit", 0.7);
+  mp.sensor_miss = declare_parameter<double>("sensor_model.miss", 0.4);
+  mp.sensor_min = declare_parameter<double>("sensor_model.min", 0.12);
+  mp.sensor_max = declare_parameter<double>("sensor_model.max", 0.97);
 
   rolling_params_.chunk_size =
-    declare_parameter<double>(
-      "rolling.coordinate_system.chunk_size", 5.0);
+    declare_parameter<double>("rolling.coordinate_system.chunk_size", 5.0);
 
   rolling_params_.hysteresis_ratio =
-    declare_parameter<double>(
-      "rolling.transition_manager.hysteresis_ratio", 0.20);
+    declare_parameter<double>("rolling.transition_manager.hysteresis_ratio", 0.20);
 
   rolling_params_.loading_policy_name =
-    declare_parameter<std::string>(
-      "rolling.loading_policy.name", "neighbourhood");
+    declare_parameter<std::string>("rolling.loading_policy.name", "neighbourhood");
 
   rolling_params_.nb_radius =
-    declare_parameter<int>(
-      "rolling.loading_policy.neighborhood.radius", 2);
+    declare_parameter<int>("rolling.loading_policy.neighborhood.radius", 2);
 
   rolling_params_.planar_z_min =
-    declare_parameter<int>(
-      "rolling.loading_policy.planar.z_min", 1);
+    declare_parameter<int>("rolling.loading_policy.planar.z_min", 1);
 
   rolling_params_.planar_z_max =
-    declare_parameter<int>(
-      "rolling.loading_policy.planar.z_max", 3);
+    declare_parameter<int>("rolling.loading_policy.planar.z_max", 3);
 
   rolling_params_.planar_use_relative =
-    declare_parameter<bool>(
-      "rolling.loading_policy.planar.use_relative", false);
+    declare_parameter<bool>("rolling.loading_policy.planar.use_relative", false);
 
   rolling_params_.temporal_age_weightage =
-    declare_parameter<double>(
-      "rolling.loading_policy.temporal.age_weightage", 0.3);
+    declare_parameter<double>("rolling.loading_policy.temporal.age_weightage", 0.3);
 
   rolling_params_.temporal_max_age_s =
-    declare_parameter<int>(
-      "rolling.loading_policy.temporal.max_age_s", 300);
+    declare_parameter<int>("rolling.loading_policy.temporal.max_age_s", 300);
 
   rolling_params_.full_save_folder_path =
-    declare_parameter<std::string>(
-      "rolling.storage.full_save_folder_path", "");
+    declare_parameter<std::string>("rolling.storage.full_save_folder_path", "");
 
   rolling_params_.asyncio.num_load_threads =
-    static_cast<size_t>(
-      declare_parameter<int>(
-        "rolling.asyncio.num_load_threads", 3));
+    static_cast<size_t>(declare_parameter<int>("rolling.asyncio.num_load_threads", 3));
 
   rolling_params_.asyncio.num_save_threads =
-    static_cast<size_t>(
-      declare_parameter<int>(
-        "rolling.asyncio.num_save_threads", 1));
+    static_cast<size_t>(declare_parameter<int>("rolling.asyncio.num_save_threads", 1));
 }
 
 void RollingBonxaiServer::initLogger()
@@ -141,9 +113,7 @@ void RollingBonxaiServer::initTF()
 void RollingBonxaiServer::initMap()
 {
   occupancy_map_ =
-    std::make_unique<RollingBonxai::RollingOccupancyMap>(
-      rolling_params_,
-      logger_);
+    std::make_unique<RollingBonxai::RollingOccupancyMap>(rolling_params_, logger_);
 }
 
 void RollingBonxaiServer::initSubscriber()
@@ -152,10 +122,7 @@ void RollingBonxaiServer::initSubscriber()
     create_subscription<sensor_msgs::msg::PointCloud2>(
       server_params_.topic_in,
       rclcpp::SensorDataQoS(),
-      std::bind(
-        &RollingBonxaiServer::pointcloudCallback,
-        this,
-        std::placeholders::_1));
+      std::bind(&RollingBonxaiServer::pointcloudCallback, this, std::placeholders::_1));
 }
 
 void RollingBonxaiServer::initStatsPublishers()
@@ -167,29 +134,42 @@ void RollingBonxaiServer::initStatsPublishers()
   if (server_params_.publish_occupied_voxels) {
     voxel_pub_ =
       create_publisher<sensor_msgs::msg::PointCloud2>(
-        "occupied_voxels",
+        "/rolling_bonxai/occupied_voxels",
         rclcpp::QoS(1).transient_local());
   }
 
   chunk_stats_pub_ =
-    create_publisher<rolling_bonxai_msgs::msg::ChunkStats>(
-      "chunk_stats",
-      rclcpp::QoS(10));
+    create_publisher<rolling_bonxai_msgs::msg::ChunkStats>("/rolling_bonxai/chunk_stats", 10);
+
+  quick_occ_stats_pub_ =
+    create_publisher<rolling_bonxai_msgs::msg::QuickOccupancyStats>(
+      "/rolling_bonxai/quick_occupancy_stats", 10);
 
   const auto period =
     std::chrono::duration<double>(1.0 / server_params_.stats_publish_rate);
 
   stats_timer_ =
+    create_wall_timer(period, std::bind(&RollingBonxaiServer::publishStats, this));
+}
+
+void RollingBonxaiServer::initChunkVisualization()
+{
+  chunk_marker_pub_ =
+    create_publisher<visualization_msgs::msg::MarkerArray>("/rolling_bonxai/chunk_markers", 1);
+
+  transition_state_pub_ =
+    create_publisher<rolling_bonxai_msgs::msg::RollingState>("/rolling_bonxai/transition_state", 10);
+
+  chunk_vis_timer_ =
     create_wall_timer(
-      period,
-      std::bind(&RollingBonxaiServer::publishStats, this));
+      std::chrono::seconds(1),
+      std::bind(&RollingBonxaiServer::publishChunkVisualization, this));
 }
 
 void RollingBonxaiServer::publishStats()
 {
   const auto now_time = now();
 
-  // ---------------- Occupied voxels ----------------
   if (voxel_pub_) {
     std::vector<Eigen::Vector3d> points;
     occupancy_map_->getOccupiedVoxels(points);
@@ -213,96 +193,162 @@ void RollingBonxaiServer::publishStats()
       pcl::toROSMsg(cloud, msg);
       msg.header.frame_id = server_params_.frame_id;
       msg.header.stamp = now_time;
-
       voxel_pub_->publish(msg);
     }
   }
 
-  // ---------------- Chunk statistics ----------------
-  rolling_bonxai_msgs::msg::ChunkStats stats_msg;
-  stats_msg.header.stamp = now_time;
-  stats_msg.header.frame_id = server_params_.frame_id;
+  rolling_bonxai_msgs::msg::ChunkStats cs;
+  cs.header.stamp = now_time;
+  cs.header.frame_id = server_params_.frame_id;
+  cs.active_chunk_count = occupancy_map_->getActiveChunkCount();
+  cs.dirty_chunk_count = occupancy_map_->getDirtyChunkCount();
+  cs.clean_chunk_count = occupancy_map_->getCleanChunkCount();
+  chunk_stats_pub_->publish(cs);
 
-  stats_msg.active_chunk_count =
-    static_cast<uint32_t>(occupancy_map_->getActiveChunkCount());
+  const auto qs = occupancy_map_->getStats(false);
+  rolling_bonxai_msgs::msg::QuickOccupancyStats qs_msg;
+  qs_msg.header.stamp = now_time;
+  qs_msg.header.frame_id = server_params_.frame_id;
+  qs_msg.total_memory_mib = bytesToMiB(qs.total_memory_bytes);
+  qs_msg.grid_memory_mib = bytesToMiB(qs.grid_memory_bytes);
+  qs_msg.buffer_memory_mib = bytesToMiB(qs.buffer_memory_bytes);
+  qs_msg.total_active_cells = qs.total_active_cells;
+  qs_msg.total_insertions = qs.total_insertions;
+  qs_msg.hit_points_added = qs.hit_points_added;
+  qs_msg.miss_points_added = qs.miss_points_added;
+  qs_msg.has_data = qs.has_data;
+  quick_occ_stats_pub_->publish(qs_msg);
+}
 
-  stats_msg.dirty_chunk_count =
-    static_cast<uint32_t>(occupancy_map_->getDirtyChunkCount());
+void RollingBonxaiServer::publishChunkVisualization()
+{
+  const auto now_time = now();
 
-  stats_msg.clean_chunk_count =
-    static_cast<uint32_t>(occupancy_map_->getCleanChunkCount());
+  const auto states = occupancy_map_->getChunkStates();
+  const auto pending = occupancy_map_->getPendingChunks();
 
-  chunk_stats_pub_->publish(stats_msg);
+  visualization_msgs::msg::MarkerArray arr;
+  const double size = rolling_params_.chunk_size;
+  int id = 0;
+
+  for (const auto& [pos, dirty] : states) {
+    visualization_msgs::msg::Marker m;
+    m.header.frame_id = server_params_.frame_id;
+    m.header.stamp = now_time;
+    m.ns = "chunks";
+    m.id = id++;
+    m.type = visualization_msgs::msg::Marker::CUBE;
+    m.action = visualization_msgs::msg::Marker::ADD;
+    m.pose.position.x = pos.x();
+    m.pose.position.y = pos.y();
+    m.pose.position.z = pos.z();
+    m.pose.orientation.w = 1.0;
+    m.scale.x = size;
+    m.scale.y = size;
+    m.scale.z = size;
+
+    if (dirty) {
+      m.color.r = 0.0f;
+      m.color.g = 1.0f;
+      m.color.b = 0.0f;
+    } else {
+      m.color.r = 0.0f;
+      m.color.g = 0.0f;
+      m.color.b = 1.0f;
+    }
+    m.color.a = 0.25f;
+    arr.markers.push_back(m);
+  }
+
+  for (const auto& pos : pending) {
+    visualization_msgs::msg::Marker m;
+    m.header.frame_id = server_params_.frame_id;
+    m.header.stamp = now_time;
+    m.ns = "chunks";
+    m.id = id++;
+    m.type = visualization_msgs::msg::Marker::CUBE;
+    m.action = visualization_msgs::msg::Marker::ADD;
+    m.pose.position.x = pos.x();
+    m.pose.position.y = pos.y();
+    m.pose.position.z = pos.z();
+    m.pose.orientation.w = 1.0;
+    m.scale.x = size;
+    m.scale.y = size;
+    m.scale.z = size;
+    m.color.r = 0.5f;
+    m.color.g = 0.5f;
+    m.color.b = 0.5f;
+    m.color.a = 0.25f;
+    arr.markers.push_back(m);
+  }
+
+  chunk_marker_pub_->publish(arr);
+
+  rolling_bonxai_msgs::msg::RollingState ts;
+  ts.header.stamp = now_time;
+  ts.header.frame_id = server_params_.frame_id;
+  ts.state = occupancy_map_->getTransitionState();
+  transition_state_pub_->publish(ts);
 }
 
 void RollingBonxaiServer::pointcloudCallback(
   const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  geometry_msgs::msg::TransformStamped transform_stamped;
+  geometry_msgs::msg::TransformStamped tf;
   try {
-    transform_stamped =
-      tf_buffer_->lookupTransform(
-        server_params_.frame_id,
-        msg->header.frame_id,
-        msg->header.stamp,
-        rclcpp::Duration::from_seconds(0.1));
+    tf = tf_buffer_->lookupTransform(
+      server_params_.frame_id,
+      msg->header.frame_id,
+      msg->header.stamp,
+      rclcpp::Duration::from_seconds(0.1));
   } catch (tf2::TransformException& ex) {
-    RCLCPP_WARN(get_logger(), "Could not transform: %s", ex.what());
+    RCLCPP_WARN(get_logger(), "TF failed: %s", ex.what());
     return;
   }
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(
-    new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::fromROSMsg(*msg, *cloud);
+  if (cloud->empty()) return;
 
-  if (cloud->empty()) {
-    return;
-  }
+  Eigen::Vector3d origin(
+    tf.transform.translation.x,
+    tf.transform.translation.y,
+    tf.transform.translation.z);
 
-  Eigen::Vector3d sensor_origin(
-    transform_stamped.transform.translation.x,
-    transform_stamped.transform.translation.y,
-    transform_stamped.transform.translation.z);
+  Eigen::Vector3d linvel(0.0,0.0,0.0);
 
-  Eigen::Vector3d sensor_linvel(0.0, 0.0, 0.0);
+  Eigen::Quaterniond q(
+    tf.transform.rotation.w,
+    tf.transform.rotation.x,
+    tf.transform.rotation.y,
+    tf.transform.rotation.z);
 
-  Eigen::Quaterniond rotation(
-    transform_stamped.transform.rotation.w,
-    transform_stamped.transform.rotation.x,
-    transform_stamped.transform.rotation.y,
-    transform_stamped.transform.rotation.z);
-
-  std::vector<Eigen::Vector3d> map_points;
-  map_points.reserve(cloud->size());
+  std::vector<Eigen::Vector3d> pts;
+  pts.reserve(cloud->size());
 
   for (const auto& p : cloud->points) {
-    if (!std::isfinite(p.x) ||
-        !std::isfinite(p.y) ||
-        !std::isfinite(p.z)) {
+    if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z))
       continue;
-    }
 
-    Eigen::Vector3d pt_sensor(p.x, p.y, p.z);
-    Eigen::Vector3d pt_map = rotation * pt_sensor + sensor_origin;
+    Eigen::Vector3d ps(p.x, p.y, p.z);
+    Eigen::Vector3d pm = q * ps + origin;
 
-    if (pt_map.z() < rolling_params_.map_params.occupancy_min_z ||
-        pt_map.z() > rolling_params_.map_params.occupancy_max_z) {
+    if (pm.z() < rolling_params_.map_params.occupancy_min_z ||
+        pm.z() > rolling_params_.map_params.occupancy_max_z)
       continue;
-    }
 
-    map_points.push_back(pt_map);
+    pts.push_back(pm);
   }
 
-  if (!map_points.empty()) {
+  if (!pts.empty()) {
     occupancy_map_->insertPointCloud(
-      map_points,
-      sensor_origin,
-      sensor_linvel,
+      pts, origin, linvel,
       rolling_params_.map_params.sensor_max_range);
   }
 }
 
 } // namespace RollingBonxai
+
 
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(RollingBonxai::RollingBonxaiServer)

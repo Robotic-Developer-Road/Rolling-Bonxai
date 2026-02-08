@@ -477,7 +477,7 @@ void RollingOccupancyMap::performTransition(const ChunkCoord& ref_chunk,
 // Statistics (aggregated across all active chunks)
 // ============================================================================
 
-bool RollingOccupancyMap::isStatsSafe() const noexcept {
+bool RollingOccupancyMap::isStatsStable() const noexcept {
     //Only safe when there are no inflight loads and pending saves
     return pending_loads_.empty() && asyncio_manager_->pendingSaveCount() == 0;
 }

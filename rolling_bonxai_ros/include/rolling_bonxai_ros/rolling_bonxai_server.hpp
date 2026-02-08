@@ -17,6 +17,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <visualization_msgs/msg/marker_array.hpp>
+
 #include "rolling_bonxai/rolling_occupancy_map.hpp"
 
 // Logger interfaces
@@ -25,6 +27,8 @@
 
 // Messages
 #include "rolling_bonxai_msgs/msg/chunk_stats.hpp"
+#include "rolling_bonxai_msgs/msg/quick_occupancy_stats.hpp"
+#include "rolling_bonxai_msgs/msg/rolling_state.hpp"
 
 namespace RollingBonxai
 {
@@ -81,51 +85,61 @@ private:
   void initStatsPublishers();
 
   /**
+   * @brief Initialize chunk visualization publishers and timer
+   */
+  void initChunkVisualization();
+
+  /**
    * @brief Periodic statistics publishing callback
    *
    * Publishes:
-   *  - Occupied voxel PointCloud2 (red points, if enabled)
-   *  - ChunkStats message (active / dirty / clean chunks)
-   *
-   * @complexity
-   *  - Voxels: O(N) where N = occupied voxels
-   *  - Chunks: O(M) where M = active chunks
+   *  - Occupied voxel PointCloud2 (if enabled)
+   *  - ChunkStats
+   *  - QuickOccupancyStats (MiB)
    */
   void publishStats();
 
   /**
+   * @brief Publish chunk visualization and transition state
+   *
+   * Chunk visualization:
+   *  - Green  → dirty
+   *  - Blue   → clean
+   *  - Gray   → pending
+   *
+   * @complexity O(N) where N = active + pending chunks
+   */
+  void publishChunkVisualization();
+
+  /**
    * @brief Handle incoming sensor point clouds
-   * @param msg Incoming PointCloud2 message
    */
   void pointcloudCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 
 private:
-  /// Server-level parameters
   ServerParams server_params_;
-
-  /// Canonical rolling map parameters
   RollingOccupancyMap::AllParameters rolling_params_;
 
-  /// Framework-agnostic logger
   std::shared_ptr<Logger> logger_;
 
-  /// TF infrastructure
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-  /// Input point cloud subscriber
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
 
-  /// Rolling occupancy map
   std::unique_ptr<RollingBonxai::RollingOccupancyMap> occupancy_map_;
 
-  /// Stats publishers
+  // Stats publishers
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr voxel_pub_;
   rclcpp::Publisher<rolling_bonxai_msgs::msg::ChunkStats>::SharedPtr chunk_stats_pub_;
-
-  /// Stats timer
+  rclcpp::Publisher<rolling_bonxai_msgs::msg::QuickOccupancyStats>::SharedPtr quick_occ_stats_pub_;
   rclcpp::TimerBase::SharedPtr stats_timer_;
+
+  // Chunk visualization
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr chunk_marker_pub_;
+  rclcpp::Publisher<rolling_bonxai_msgs::msg::RollingState>::SharedPtr transition_state_pub_;
+  rclcpp::TimerBase::SharedPtr chunk_vis_timer_;
 };
 
 } // namespace RollingBonxai

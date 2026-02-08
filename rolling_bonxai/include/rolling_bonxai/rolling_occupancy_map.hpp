@@ -174,8 +174,8 @@ public:
      * 
      * @return true if no loads or saves are in progress
      */
-    [[nodiscard]] bool isStatsSafe() const noexcept;
-    
+    [[nodiscard]] bool isStatsStable() const noexcept;
+
     /**
      * @brief Get total number of active (allocated) cells across all chunks
      * @return Sum of active cell counts from all active chunks

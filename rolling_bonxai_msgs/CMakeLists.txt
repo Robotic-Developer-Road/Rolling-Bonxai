@@ -17,7 +17,8 @@ find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ChunkStats.msg"
-  # "msg/OccupancyMapStats.msg"
+  "msg/QuickOccupancyStats.msg"
+  "msg/RollingState.msg"
   # "srv/GetOccupiedVoxels.srv"
   # "srv/GetFreeVoxels.srv"
   DEPENDENCIES std_msgs geometry_msgs
