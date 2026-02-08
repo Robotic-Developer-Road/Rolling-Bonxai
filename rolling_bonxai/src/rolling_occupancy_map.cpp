@@ -151,7 +151,7 @@ void RollingOccupancyMap::updateOccupancy(const std::vector<Vector3D>& points,
 
         if (dist_squared_source2point >= max_range_sq) {
             // need to clip it
-            end_point = source + ((source2pointvec.normalized()) * max_range); 
+            end_point = source + (source2pointvec / std::sqrt(dist_squared_source2point)) * max_range;
             is_hit = false;
         }
         else {
@@ -192,6 +192,7 @@ void RollingOccupancyMap::updateOccupancy(const std::vector<Vector3D>& points,
         // Reset ray-walk state to source chunk for each ray
         current_voxel_min = source_voxel_min;
         current_voxel_max = source_voxel_max;
+        current_ray_chunk_coord = source_chunk_coord;
 
         Bonxai::Occupancy::RayIterator(
             source_vox_coord, endpoint_vox_coord,
@@ -240,20 +241,246 @@ void RollingOccupancyMap::updateOccupancy(const std::vector<Vector3D>& points,
 // ============================================================================
 
 void RollingOccupancyMap::updateRolling(
-    [[maybe_unused]] const Vector3D& source,
-    [[maybe_unused]] const Vector3D& source_lin_vel)
+    const Vector3D& source,
+    const Vector3D& source_lin_vel)
 {
-    // @TODO
-    // Stub: will be implemented in part 2
-    // - TransitionManager::shouldTriggerTransition()
-    // - Policy evaluation (shouldLoad / shouldEvict)
-    // - AsyncChunkManager load/save dispatch
-    // - Pending load completion polling
+    // ------------------------------------------------------------------
+    // Step 1: Always poll pending loads — promote completed futures
+    // ------------------------------------------------------------------
+    pollPendingLoads();
+
+    // ------------------------------------------------------------------
+    // Step 2: Evaluate transition manager
+    // ------------------------------------------------------------------
+    TransitionManagerContext tm_context;
+    tm_context.ego_position = source;
+    tm_context.ego_velocity = source_lin_vel;
+
+    bool transition_triggered = transition_manager_->shouldTriggerTransition(tm_context);
+
+    // ------------------------------------------------------------------
+    // Step 3: If transition triggered, perform load/evict cycle
+    // ------------------------------------------------------------------
+    if (transition_triggered) {
+        const ChunkCoord ref_chunk = transition_manager_->getRefChunkCoord();
+        performTransition(ref_chunk, source);
+    }
+
+    // ------------------------------------------------------------------
+    // Step 4: Update metadata for the current reference chunk
+    // ------------------------------------------------------------------
+    const ChunkCoord current_chunk = transition_manager_->getRefChunkCoord();
+    auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    auto& meta = chunk_metadata_[current_chunk];
+    meta.last_access_time = now_ns;
+    meta.access_count++;
+}
+
+// ============================================================================
+// Poll Pending Loads
+// ============================================================================
+
+void RollingOccupancyMap::pollPendingLoads()
+{
+    // We cannot erase from the map while iterating, so collect completed keys
+    std::vector<ChunkCoord> completed;
+
+    for (auto& [coord, future] : pending_loads_) {
+        // Non-blocking check: is the future ready?
+        if (future.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+            continue;
+        }
+
+        // Future is ready — try to retrieve the result
+        try {
+            // load it
+            std::unique_ptr<Bonxai::OccupancyMap> loaded_map = future.get();
+
+            if (loaded_map) 
+            {
+                // Don't insert if something already occupies this slot
+                // (edge case: rapid transitions could cause this)
+                if (!active_chunks_.contains(coord)) 
+                {
+                    // Wrap in ManagedChunk. Chunks loaded from disk start clean;
+                    // chunks created fresh by the factory have no data so also clean.
+                    // The occupancy update path will mark them dirty when modified.
+                    ManagedChunk managed(std::move(loaded_map), coord, /*dirty=*/false);
+                    active_chunks_.insert(coord, std::move(managed));
+
+                    // Initialise metadata if not already present
+                    if (chunk_metadata_.find(coord) == chunk_metadata_.end()) {
+                        auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            std::chrono::steady_clock::now().time_since_epoch()).count();
+                        ChunkMetadata meta;
+                        meta.creation_time = now_ns;
+                        meta.last_access_time = now_ns;
+                        meta.access_count = 1;
+                        chunk_metadata_[coord] = meta;
+                    }
+                } 
+                else 
+                {
+                    logger_->log_warn("pollPendingLoads: chunk ("
+                        + std::to_string(coord.x) + "," + std::to_string(coord.y) + ","
+                        + std::to_string(coord.z) + ") already active — discarding loaded map");
+                }
+            } 
+            else {
+                logger_->log_warn("pollPendingLoads: null map returned for chunk ("
+                    + std::to_string(coord.x) + "," + std::to_string(coord.y) + ","
+                    + std::to_string(coord.z) + ")");
+            }
+        } catch (const std::exception& e) {
+            logger_->log_error("pollPendingLoads: load failed for chunk ("
+                + std::to_string(coord.x) + "," + std::to_string(coord.y) + ","
+                + std::to_string(coord.z) + "): " + e.what());
+        }
+
+        completed.push_back(coord);
+    }
+
+    // Erase completed entries
+    for (const auto& coord : completed) {
+        pending_loads_.erase(coord);
+    }
+}
+
+// ============================================================================
+// Perform Transition (Load / Evict Cycle)
+// ============================================================================
+
+void RollingOccupancyMap::performTransition(const ChunkCoord& ref_chunk,
+                                            const Vector3D& source)
+{
+    // Get the time now
+    const auto now = std::chrono::steady_clock::now();
+
+    // Build the policy context
+    PolicyContext policy_ctx(source, ref_chunk, now, chunk_metadata_);
+
+    // ------------------------------------------------------------------
+    // A. Determine the desired chunk set
+    // ------------------------------------------------------------------
+    // The current chunk is ALWAYS loaded with maximum priority
+    std::unordered_set<ChunkCoord, ChunkCoordHash> desired_set;
+    desired_set.insert(ref_chunk);
+
+    // Iterate all neighbours within the policy radius
+    const int radius = params_.nb_radius;
+    ChunkCoordinateSystem::forEachNeighbour(ref_chunk, radius,
+        [&](const ChunkCoord& candidate) {
+            if (loading_policy_->shouldLoad(candidate, policy_ctx)) {
+                desired_set.insert(candidate);
+            }
+        }
+    );
+
+    // ------------------------------------------------------------------
+    // B. Load: dispatch async loads for desired chunks not yet active/pending
+    // ------------------------------------------------------------------
+
+    // Current chunk gets priority 2.0 (always above policy range of [0,1])
+    // so it is loaded first
+    if (!active_chunks_.contains(ref_chunk) &&
+        pending_loads_.find(ref_chunk) == pending_loads_.end() &&
+        !asyncio_manager_->isLoading(ref_chunk))
+    {
+        auto future_opt = asyncio_manager_->loadAsync(
+            ref_chunk, /*priority=*/2.0f, map_factory_, options_factory_);
+        if (future_opt.has_value()) {
+            pending_loads_[ref_chunk] = std::move(future_opt.value());
+        }
+    }
+    // Remaining desired chunks at policy-determined priorities
+    for (const auto& coord : desired_set) {
+        // Skip the current chunk (already handled above)
+        if (coord == ref_chunk) {
+            continue;
+        }
+
+        // Skip if already active or already loading
+        if (active_chunks_.contains(coord)) {
+            continue;
+        }
+        if (pending_loads_.find(coord) != pending_loads_.end()) {
+            continue;
+        }
+        if (asyncio_manager_->isLoading(coord)) {
+            continue;
+        }
+
+        float priority = static_cast<float>(loading_policy_->getPriority(coord, policy_ctx));
+
+        auto future_opt = asyncio_manager_->loadAsync(
+            coord, priority, map_factory_, options_factory_);
+        if (future_opt.has_value()) {
+            pending_loads_[coord] = std::move(future_opt.value());
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // C. Evict: save-if-dirty, then remove chunks the policy no longer wants
+    // ------------------------------------------------------------------
+    // Collect eviction candidates first (cannot erase during forEachChunk)
+    std::vector<ChunkCoord> to_evict;
+
+    active_chunks_.forEachChunk(
+        [&](const ChunkCoord& coord, const ManagedChunk& chunk) {
+            // Never evict the current reference chunk
+            if (coord == ref_chunk) {
+                return;
+            }
+            if (loading_policy_->shouldEvict(coord, policy_ctx)) {
+                to_evict.push_back(coord);
+            }
+        }
+    );
+
+    for (const auto& coord : to_evict) {
+        ManagedChunk* managed = active_chunks_.find(coord);
+        if (!managed) {
+            continue; // shouldn't happen, defensive
+        }
+
+        // If dirty, save the VoxelGrid before evicting
+        if (managed->isDirty() && managed->isMapValid()) {
+            // Transfer ownership of the OccupancyMap out of the ManagedChunk
+            // then move the VoxelGrid out of the OccupancyMap for saving.
+            // After transferMapOwnership(), the ManagedChunk's map_ is nullptr.
+            auto map_uptr = managed->transferMapOwnership();
+            if (map_uptr) {
+                // Move the grid out for the save pipeline
+                asyncio_manager_->saveAsync(coord, std::move(map_uptr->getGrid()));
+            }
+        }
+
+        // Remove from active storage (ManagedChunk destroyed here)
+        active_chunks_.erase(coord);
+
+        // Note: we intentionally keep chunk_metadata_ for this coord.
+        // The temporal policy may need historical metadata for future decisions.
+    }
+
+    logger_->log_info("performTransition: ref=("
+        + std::to_string(ref_chunk.x) + "," + std::to_string(ref_chunk.y) + ","
+        + std::to_string(ref_chunk.z) + ") desired=" + std::to_string(desired_set.size())
+        + " active=" + std::to_string(active_chunks_.size())
+        + " pending=" + std::to_string(pending_loads_.size())
+        + " evicted=" + std::to_string(to_evict.size()));
+
 }
 
 // ============================================================================
 // Statistics (aggregated across all active chunks)
 // ============================================================================
+
+bool RollingOccupancyMap::isStatsSafe() const noexcept {
+    //Only safe when there are no inflight loads and pending saves
+    return pending_loads_.empty() && asyncio_manager_->pendingSaveCount() == 0;
+}
 
 size_t RollingOccupancyMap::getActiveCellCount() const noexcept
 {
@@ -310,7 +537,7 @@ std::string RollingOccupancyMap::getTransitionState() const {
     return reflected;
 }
 
-std::vector<std::pair<RollingOccupancyMap::Vector3D,bool>> RollingOccupancyMap::getChunkStates() const{
+std::vector<std::pair<RollingOccupancyMap::Vector3D,bool>> RollingOccupancyMap::getChunkStates() const {
     std::vector<std::pair<Vector3D,bool>> ret;
     ret.reserve(active_chunks_.size());
     
@@ -324,6 +551,18 @@ std::vector<std::pair<RollingOccupancyMap::Vector3D,bool>> RollingOccupancyMap::
         }
     );
     return ret;
+}
+
+std::vector<RollingOccupancyMap::Vector3D> RollingOccupancyMap::getPendingChunks() const {
+    std::vector<Vector3D> pending_chunk_coords;
+    pending_chunk_coords.reserve(pending_loads_.size());
+
+    for (const auto&[chunk_coord,future] : pending_loads_) {
+        auto pos = this->c_sys_->chunkToPositionCoordinate(chunk_coord);
+        pending_chunk_coords.push_back(pos);
+    }
+
+    return pending_chunk_coords;
 }
 
 size_t RollingOccupancyMap::getMemoryUsage() const noexcept

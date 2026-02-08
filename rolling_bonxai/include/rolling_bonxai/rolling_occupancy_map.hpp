@@ -165,7 +165,17 @@ public:
     // ========================================================================
     // Statistics (aggregated across all active chunks)
     // ========================================================================
-
+    /**
+     * @brief Check if the map is in a stable state with no ongoing I/O
+     * 
+     * Returns true only when there are no pending async loads and no
+     * in-flight saves. Callers (e.g., ROS2 service handlers) can use
+     * this to skip expensive statistics calls during transitions.
+     * 
+     * @return true if no loads or saves are in progress
+     */
+    [[nodiscard]] bool isStatsSafe() const noexcept;
+    
     /**
      * @brief Get total number of active (allocated) cells across all chunks
      * @return Sum of active cell counts from all active chunks
@@ -201,6 +211,12 @@ public:
      * position of a chunk and whether it is clean or dirty
      */
     [[nodiscard]] std::vector<std::pair<Vector3D,bool>> getChunkStates() const;
+
+    /**
+     * @brief Query the pending loads to see which chunks are pending
+     * Do not touch the future!
+     */
+    [[nodiscard]] std::vector<Vector3D> getPendingChunks() const;
 
     /**
      * @brief Get total memory usage in bytes across all chunks
@@ -443,10 +459,23 @@ private:
     /**
      * @brief Perform rolling update (transition management, chunk loading/eviction)
      * 
+     * Called every update cycle. Always polls pending load futures to promote
+     * completed loads into active_chunks_. If the TransitionManager signals a
+     * transition (or first initialisation), evaluates the loading policy to
+     * determine which chunks to load and evict.
+     * 
+     * Flow:
+     *   1. Poll pending_loads_ — promote completed futures into active_chunks_
+     *   2. Call TransitionManager::shouldTriggerTransition()
+     *   3. If transition triggered:
+     *      a. Build PolicyContext from current state
+     *      b. Determine desired chunk set (current chunk + policy radius neighbours)
+     *      c. Load: for each desired chunk not active and not pending, call loadAsync
+     *      d. Evict: for each active chunk the policy says to evict, save-if-dirty then erase
+     *   4. Update chunk_metadata_ for current chunk
+     * 
      * @param source Current sensor position in map frame
      * @param source_lin_vel Current sensor velocity in map frame
-     * 
-     * @note Stub for now — will be implemented in part 2
      */
     void updateRolling(const Vector3D& source,
                        const Vector3D& source_lin_vel);
@@ -454,7 +483,30 @@ private:
     // ========================================================================
     // Internal Helpers
     // ========================================================================
-    
+
+    /**
+     * @brief Poll all pending load futures and promote completed ones
+     * 
+     * Iterates pending_loads_. For each future that is ready (wait_for(0) == ready),
+     * calls .get() to retrieve the OccupancyMap, wraps it in a ManagedChunk, and
+     * inserts into active_chunks_. Handles exceptions from failed loads gracefully.
+     */
+    void pollPendingLoads();
+
+    /**
+     * @brief Execute the load/evict cycle after a confirmed transition
+     * 
+     * Evaluates the loading policy against all candidates (current chunk +
+     * neighbours within policy radius) and all currently active chunks.
+     * Dispatches async loads for new chunks and evicts (with lazy save) chunks
+     * the policy no longer wants.
+     * 
+     * @param ref_chunk The reference chunk coordinate (from TransitionManager)
+     * @param source Current sensor position in world frame
+     */
+    void performTransition(const ChunkCoord& ref_chunk,
+                           const Vector3D& source);
+
     /**
      * @brief Build the OccupancyMapFactory from current MapParams
      * 
@@ -505,6 +557,15 @@ private:
 
     /// Counter for points dropped due to dispatch to unloaded chunks
     uint64_t dropped_points_{0};
+
+    /// Pending async load futures, keyed by chunk coordinate.
+    /// Entries are added when loadAsync() is called and removed when the
+    /// future is ready (polled in pollPendingLoads).
+    std::unordered_map<
+        ChunkCoord,
+        std::future<std::unique_ptr<Bonxai::OccupancyMap>>,
+        ChunkCoordHash
+    > pending_loads_;
 };
 
 } // namespace RollingBonxai
