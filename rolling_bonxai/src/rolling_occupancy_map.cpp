@@ -9,14 +9,11 @@ RollingOccupancyMap::RollingOccupancyMap(const AllParameters& params, std::share
     params_(params),
     logger_(logger)
 {
-    // Cache inverse resolution
-    inv_resolution_ = 1.0 / params_.map_params.resolution;
-
     // Build factories from MapParams
     buildFactories();
 
     // Initialize coordinate system
-    c_sys_ = std::make_unique<ChunkCoordinateSystem>(params_.chunk_size);
+    c_sys_ = std::make_unique<ChunkCoordinateSystem>(params_.map_params.resolution,params_.chunk_size);
 
     // Initialise transition manager
     transition_manager_ = std::make_unique<TransitionManager>(params_.hysteresis_ratio, *c_sys_);
@@ -128,7 +125,9 @@ void RollingOccupancyMap::updateOccupancy(const std::vector<Vector3D>& points,
     ChunkCoord source_chunk_coord = c_sys_->positionToChunkCoordinate(source);
     
     // precompute bounds in terms of voxel coordinates. Each 
-    auto [current_voxel_min,current_voxel_max] = c_sys_->worldBoundsToVoxelBounds(source_chunk_coord);
+    const auto [source_voxel_min,source_voxel_max] = c_sys_->worldBoundsToVoxelBounds(source_chunk_coord);
+    auto current_voxel_min = source_voxel_min;
+    auto current_voxel_max = source_voxel_max;
 
     // Current ray chunk. This will keep track as we walk along the ray
     ChunkCoord current_ray_chunk_coord = source_chunk_coord;
@@ -191,9 +190,8 @@ void RollingOccupancyMap::updateOccupancy(const std::vector<Vector3D>& points,
         // Step 3: Raytrace source → endpoint, dispatch intermediates
         // ----------------------------------------------------------------
         // Reset ray-walk state to source chunk for each ray
-        current_ray_chunk_coord = source_chunk_coord;
-        current_voxel_min = c_sys_->worldBoundsToVoxelBounds(source_chunk_coord).first;
-        current_voxel_max = c_sys_->worldBoundsToVoxelBounds(source_chunk_coord).second;
+        current_voxel_min = source_voxel_min;
+        current_voxel_max = source_voxel_max;
 
         Bonxai::Occupancy::RayIterator(
             source_vox_coord, endpoint_vox_coord,
@@ -261,7 +259,7 @@ size_t RollingOccupancyMap::getActiveCellCount() const noexcept
 {
     size_t total = 0;
     active_chunks_.forEachChunk(
-        [&total](const ChunkCoord&, const ManagedChunk& chunk) {
+        [&total]([[maybe_unused]] const ChunkCoord&, const ManagedChunk& chunk) {
             if (const auto* map = chunk.getConstMap()) {
                 total += map->getActiveCellCount();
             }
@@ -273,7 +271,7 @@ size_t RollingOccupancyMap::getActiveCellCount() const noexcept
 size_t RollingOccupancyMap::getActiveChunkCount() const {
     size_t total = 0;
     active_chunks_.forEachChunk(
-        [&total](const ChunkCoord&, const ManagedChunk& chunk) {
+        [&total]([[maybe_unused]] const ChunkCoord&, const ManagedChunk& chunk) {
             if (chunk.getConstMap()) {
                 total += 1;
             }
@@ -285,7 +283,7 @@ size_t RollingOccupancyMap::getActiveChunkCount() const {
 size_t RollingOccupancyMap::getDirtyChunkCount() const {
     size_t total = 0;
     active_chunks_.forEachChunk(
-        [&total](const ChunkCoord&, const ManagedChunk& chunk) {
+        [&total]([[maybe_unused]] const ChunkCoord&, const ManagedChunk& chunk) {
             if (chunk.getConstMap() && chunk.isDirty()) {
                 total += 1;
             }
@@ -297,7 +295,7 @@ size_t RollingOccupancyMap::getDirtyChunkCount() const {
 size_t RollingOccupancyMap::getCleanChunkCount() const {
     size_t total = 0;
     active_chunks_.forEachChunk(
-        [&total](const ChunkCoord&, const ManagedChunk& chunk) {
+        [&total]([[maybe_unused]] const ChunkCoord&, const ManagedChunk& chunk) {
             if (chunk.getConstMap() && !chunk.isDirty()) {
                 total += 1;
             }
@@ -306,15 +304,14 @@ size_t RollingOccupancyMap::getCleanChunkCount() const {
     return total;
 }
 
-std::vector<std::pair<RollingOccupancyMap::Vector3D,bool>> RollingOccupancyMap::getChunkStates(){
+std::vector<std::pair<RollingOccupancyMap::Vector3D,bool>> RollingOccupancyMap::getChunkStates() const{
     std::vector<std::pair<Vector3D,bool>> ret;
     ret.reserve(active_chunks_.size());
     
     active_chunks_.forEachChunk(
-        [this,&ret](const ChunkCoord&, ManagedChunk& chunk) {
-            if (chunk.isMapValid()) {
-                auto chunk_coord = chunk.getChunkCoord();
-                auto pos = this->c_sys_->chunkToPositionCoordinate(chunk_coord);
+        [this,&ret](const ChunkCoord &coord, const ManagedChunk& chunk) {
+            if (chunk.getConstMap()) {
+                auto pos = this->c_sys_->chunkToPositionCoordinate(coord);
                 bool dirty = chunk.isDirty();
                 ret.emplace_back(pos,dirty);
             }
@@ -327,7 +324,7 @@ size_t RollingOccupancyMap::getMemoryUsage() const noexcept
 {
     size_t total = 0;
     active_chunks_.forEachChunk(
-        [&total](const ChunkCoord&, const ManagedChunk& chunk) {
+        [&total]([[maybe_unused]] const ChunkCoord&, const ManagedChunk& chunk) {
             if (const auto* map = chunk.getConstMap()) {
                 total += map->getMemoryUsage();
             }
@@ -627,4 +624,4 @@ const RollingOccupancyMap::OccupancyOptionsFactory& RollingOccupancyMap::getOpti
     return options_factory_;
 }
 
-} //namespace RollingOccupancyMap
+} //namespace RollingBonxai

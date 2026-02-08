@@ -235,12 +235,12 @@ public:
     /**
      * @brief Get the chunk coord
      */
-    [[nodiscard]] ChunkCoord getChunkCoord();
+    [[nodiscard]] ChunkCoord getChunkCoord() const;
 
     /**
      * @brief Get the chunk coord as a str
      */
-    [[nodiscard]] std::string getChunkCoordStr();
+    [[nodiscard]] std::string getChunkCoordStr() const;
 
     /**
      * @brief Check if it is dirty
@@ -266,7 +266,7 @@ public:
     /**
      * @brief Check if the map is valid, basically just a check if the map is a nullptr
      */
-    [[nodiscard]] bool isMapValid();
+    [[nodiscard]] bool isMapValid() const;
     
 private:
     

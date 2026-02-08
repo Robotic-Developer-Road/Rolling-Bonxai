@@ -194,7 +194,7 @@ public:
      * @brief Get a std::vector<pair<Vec3d,bool>> containing the center
      * position of a chunk and whether it is clean or dirty
      */
-    [[nodiscard]] std::vector<std::pair<Vector3D,bool>> getChunkStates();
+    [[nodiscard]] std::vector<std::pair<Vector3D,bool>> getChunkStates() const;
 
     /**
      * @brief Get total memory usage in bytes across all chunks

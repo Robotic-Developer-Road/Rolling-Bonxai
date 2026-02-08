@@ -123,11 +123,11 @@ Bonxai::OccupancyMap* ManagedChunk::getMutableMap() {
     return map_.get();
 }
 
-ChunkCoord ManagedChunk::getChunkCoord() {
+ChunkCoord ManagedChunk::getChunkCoord() const {
     return chunk_coordinate_;
 }
 
-std::string ManagedChunk::getChunkCoordStr() {
+std::string ManagedChunk::getChunkCoordStr() const {
     std::ostringstream oss;
     oss << "(" << chunk_coordinate_.x << "," << chunk_coordinate_.y << "," << chunk_coordinate_.z << ")";
     return oss.str();
@@ -151,7 +151,7 @@ std::unique_ptr<Bonxai::OccupancyMap> ManagedChunk::transferMapOwnership() {
     return std::move(map_);
 }
 
-bool ManagedChunk::isMapValid() {
+bool ManagedChunk::isMapValid() const {
     if (map_) {return true;}
     return false;
 }
