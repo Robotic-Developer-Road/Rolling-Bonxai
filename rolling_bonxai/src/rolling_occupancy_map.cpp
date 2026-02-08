@@ -304,6 +304,12 @@ size_t RollingOccupancyMap::getCleanChunkCount() const {
     return total;
 }
 
+std::string RollingOccupancyMap::getTransitionState() const {
+    auto t_state_enum = transition_manager_->getRefTransitionState();
+    std::string reflected = reflectTransitionState(t_state_enum);
+    return reflected;
+}
+
 std::vector<std::pair<RollingOccupancyMap::Vector3D,bool>> RollingOccupancyMap::getChunkStates() const{
     std::vector<std::pair<Vector3D,bool>> ret;
     ret.reserve(active_chunks_.size());

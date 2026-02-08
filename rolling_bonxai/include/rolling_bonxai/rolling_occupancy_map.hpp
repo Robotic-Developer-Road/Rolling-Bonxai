@@ -191,6 +191,12 @@ public:
     [[nodiscard]] size_t getCleanChunkCount() const;
 
     /**
+     * @brief Get the state as a string
+     * @return std::string
+     */
+    [[nodiscard]] std::string getTransitionState() const;
+
+    /**
      * @brief Get a std::vector<pair<Vec3d,bool>> containing the center
      * position of a chunk and whether it is clean or dirty
      */
