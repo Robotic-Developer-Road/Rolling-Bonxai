@@ -570,6 +570,8 @@ public:
      */
     [[nodiscard]] ConstAccessor getConstAccessor() const;
 
+    void updateFreeCellsPreRayTrace();
+
 private:
     // ========================================================================
     // Internal Methods
@@ -579,7 +581,6 @@ private:
     void ensureConstAccessorValid() const;
     void invalidateAccessors();
     void updateFreeCells(const Vector3D& origin);
-    void updateFreeCellsNoRayTrace();
     void incrementUpdateCount() noexcept;
     
     // ========================================================================

@@ -400,7 +400,7 @@ void OccupancyMap::updateFreeCells(const Vector3D& origin) {
     incrementUpdateCount();
 }
 
-void OccupancyMap::updateFreeCellsNoRayTrace() {
+void OccupancyMap::updateFreeCellsPreRayTrace() {
     if (hit_coords_.empty() && miss_coords_.empty()) {
         return;
     }
