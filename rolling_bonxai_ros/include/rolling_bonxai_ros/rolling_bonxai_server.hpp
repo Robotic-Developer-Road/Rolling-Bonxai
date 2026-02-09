@@ -30,6 +30,9 @@
 #include "rolling_bonxai_msgs/msg/quick_occupancy_stats.hpp"
 #include "rolling_bonxai_msgs/msg/rolling_state.hpp"
 
+// Services
+#include "std_srvs/srv/trigger.hpp"
+
 namespace RollingBonxai
 {
 
@@ -80,6 +83,11 @@ private:
   void initSubscriber();
 
   /**
+   * @brief Initialize PointCloud2 services
+   */
+  void initService();
+
+  /**
    * @brief Initialize statistics publishers and timer
    */
   void initStatsPublishers();
@@ -98,6 +106,12 @@ private:
    *  - QuickOccupancyStats (MiB)
    */
   void publishStats();
+
+  /**
+   * @brief Service that allows a user to clean memory
+   */
+  void cleanMemoryServiceCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
   /**
    * @brief Publish chunk visualization and transition state
@@ -135,6 +149,9 @@ private:
   rclcpp::Publisher<rolling_bonxai_msgs::msg::ChunkStats>::SharedPtr chunk_stats_pub_;
   rclcpp::Publisher<rolling_bonxai_msgs::msg::QuickOccupancyStats>::SharedPtr quick_occ_stats_pub_;
   rclcpp::TimerBase::SharedPtr stats_timer_;
+
+  // Services
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr clean_memory_srv_;
 
   // Chunk visualization
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr chunk_marker_pub_;

@@ -22,6 +22,7 @@ RollingBonxaiServer::RollingBonxaiServer(
   initTF();
   initMap();
   initSubscriber();
+  initService();
   initStatsPublishers();
   initChunkVisualization();
 
@@ -125,6 +126,18 @@ void RollingBonxaiServer::initSubscriber()
       std::bind(&RollingBonxaiServer::pointcloudCallback, this, std::placeholders::_1));
 }
 
+void RollingBonxaiServer::initService()
+{
+  clean_memory_srv_ =
+    create_service<std_srvs::srv::Trigger>(
+      "/rolling_bonxai/clean_memory",
+      std::bind(
+        &RollingBonxaiServer::cleanMemoryServiceCallback,
+        this,
+        std::placeholders::_1,
+        std::placeholders::_2));
+  }
+
 void RollingBonxaiServer::initStatsPublishers()
 {
   if (!server_params_.enable_stats) {
@@ -165,6 +178,24 @@ void RollingBonxaiServer::initChunkVisualization()
       std::chrono::seconds(1),
       std::bind(&RollingBonxaiServer::publishChunkVisualization, this));
 }
+
+void RollingBonxaiServer::cleanMemoryServiceCallback(
+  const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+  std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+  if (!occupancy_map_->isStatsStable()) {
+    response->success = false;
+    response->message = "Memory cleanup skipped: map not in stats-safe state";
+    return;
+  }
+
+  occupancy_map_->releaseUnusedMemory();
+  occupancy_map_->shrinkToFit();
+
+  response->success = true;
+  response->message = "RollingBonxai memory cleanup completed";
+}
+
 
 void RollingBonxaiServer::publishStats()
 {
@@ -256,7 +287,7 @@ void RollingBonxaiServer::publishChunkVisualization()
       m.color.g = 0.0f;
       m.color.b = 1.0f;
     }
-    m.color.a = 0.25f;
+    m.color.a = 0.15f;
     arr.markers.push_back(m);
   }
 
@@ -278,7 +309,7 @@ void RollingBonxaiServer::publishChunkVisualization()
     m.color.r = 0.5f;
     m.color.g = 0.5f;
     m.color.b = 0.5f;
-    m.color.a = 0.25f;
+    m.color.a = 0.15f;
     arr.markers.push_back(m);
   }
 
