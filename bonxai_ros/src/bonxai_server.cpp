@@ -41,9 +41,7 @@ void BonxaiServer::load_parameters()
   RCLCPP_INFO(get_logger(), "Loading parameters...");
   
   // --- Core map parameters ---
-  params_.resolution =
-    this->declare_parameter<double>("resolution", 0.05);
-    
+
   params_.frame_id =
     this->declare_parameter<std::string>("frame_id", "map");
     
@@ -52,17 +50,20 @@ void BonxaiServer::load_parameters()
     
   params_.topic_in =
     this->declare_parameter<std::string>("topic_in", "/points");
+
+  params_.resolution =
+    this->declare_parameter<double>("occupancy.resolution", 0.05);
   
   // --- Occupancy z-bounds ---
   params_.occupancy_min_z =
-    this->declare_parameter<double>("occupancy_min_z", -1.0);
+    this->declare_parameter<double>("occupancy.occupancy_min_z", -1.0);
     
   params_.occupancy_max_z =
-    this->declare_parameter<double>("occupancy_max_z", 2.0);
+    this->declare_parameter<double>("occupancy.occupancy_max_z", 2.0);
 
   // --- Occupancy Threshold ---
   params_.occupancy_threshold =
-    this->declare_parameter<double>("occupancy_threshold", 0.50);
+    this->declare_parameter<double>("occupancy.occupancy_threshold", 0.50);
   
   // --- Sensor model parameters ---
   params_.sensor_max_range =
@@ -84,7 +85,7 @@ void BonxaiServer::load_parameters()
   params_.cleanup_interval_sec =
     this->declare_parameter<double>("server.cleanup_interval_sec", 300.0);
   
-  // --- Statostocs ---
+  // --- Statostics ---
   params_.enable_stats =
     this->declare_parameter<bool>("stats.enable_stats", true);
     
@@ -433,9 +434,9 @@ void BonxaiServer::fill_stats_msg(bonxai_msgs::msg::OccupancyMapStats& msg)
   }
   
   // Memory usage
-  msg.total_memory_bytes = stats.total_memory_bytes;
-  msg.grid_memory_bytes = stats.grid_memory_bytes;
-  msg.buffer_memory_bytes = stats.buffer_memory_bytes;
+  msg.total_memory_mib =  static_cast<double>(stats.total_memory_bytes) / 1048576.0f;
+  msg.grid_memory_mib =   static_cast<double>(stats.grid_memory_bytes) / 1048576.0f;
+  msg.buffer_memory_mib = static_cast<double>(stats.buffer_memory_bytes) / 1048576.0f;
   
   // Cell counts
   msg.total_active_cells = stats.total_active_cells;
@@ -569,7 +570,7 @@ void BonxaiServer::stats_timer_callback()
   RCLCPP_INFO(get_logger(),
     "Stats published: %lu active cells, %.1f MB, occupancy=%.2f%%",
     msg.total_active_cells,
-    static_cast<double>(msg.total_memory_bytes) / 1048576.0,
+    static_cast<double>(msg.total_memory_mib),
     msg.occupancy_ratio * 100.0f);
 }
 

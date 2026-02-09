@@ -19,6 +19,20 @@ namespace RollingBonxai
 using LinearVelocity3D = Eigen::Vector3d;
 using Position3D = Eigen::Vector3d;
 
+struct MapParams
+{
+  double resolution{0.0};
+  double occupancy_min_z{0.0};
+  double occupancy_max_z{0.0};
+  double occupancy_threshold{0.50};
+
+  double sensor_max_range{0.0};
+  double sensor_hit{0.0};
+  double sensor_miss{0.0};
+  double sensor_min{0.0};
+  double sensor_max{0.0};
+};
+
 /**
  * @brief Chunk coordinate in grid space using center-origin convention
  * 
@@ -221,12 +235,12 @@ public:
     /**
      * @brief Get the chunk coord
      */
-    [[nodiscard]] ChunkCoord getChunkCoord();
+    [[nodiscard]] ChunkCoord getChunkCoord() const;
 
     /**
      * @brief Get the chunk coord as a str
      */
-    [[nodiscard]] std::string getChunkCoordStr();
+    [[nodiscard]] std::string getChunkCoordStr() const;
 
     /**
      * @brief Check if it is dirty
@@ -252,12 +266,12 @@ public:
     /**
      * @brief Check if the map is valid, basically just a check if the map is a nullptr
      */
-    [[nodiscard]] bool isMapValid();
+    [[nodiscard]] bool isMapValid() const;
     
 private:
     
     /// @brief An owning unique pointer to the chunk
-    MapUPtr map_;
+    MapUPtr map_; 
 
     /// @brief The chunk coordinate corresponding to this chunk
     ChunkCoord chunk_coordinate_;

@@ -1,14 +1,15 @@
 bonxai_server_node:
   ros__parameters:
-    resolution: 0.02
     frame_id: "map"
     base_frame_id: "zed_camera_link"
     topic_in: "/zed/zed_node/point_cloud/cloud_registered"
 
-    occupancy_min_z: -100.0
-    occupancy_max_z: 100.0
-    occupancy_threshold: 0.50
-
+    occupancy:
+      resolution: 0.02
+      occupancy_min_z: -100.0
+      occupancy_max_z: 100.0
+      occupancy_threshold: 0.50
+    
     sensor_model:
       max_range: 10.0
       hit: 0.7

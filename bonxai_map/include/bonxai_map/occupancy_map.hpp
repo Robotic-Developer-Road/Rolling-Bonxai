@@ -570,6 +570,8 @@ public:
      */
     [[nodiscard]] ConstAccessor getConstAccessor() const;
 
+    void updateFreeCellsPreRayTrace();
+
 private:
     // ========================================================================
     // Internal Methods

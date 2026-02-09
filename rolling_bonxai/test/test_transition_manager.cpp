@@ -20,7 +20,7 @@ protected:
         hyst_ratio_ = 0.2;
         
         // Create coordinate system
-        csys_ = std::make_unique<ChunkCoordinateSystem>(chunk_size_);
+        csys_ = std::make_unique<ChunkCoordinateSystem>(0.2,chunk_size_);
         
         // Create transition manager
         tm_ = std::make_unique<TransitionManager>(hyst_ratio_, *csys_);

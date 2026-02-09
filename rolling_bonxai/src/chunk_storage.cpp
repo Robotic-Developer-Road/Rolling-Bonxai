@@ -7,7 +7,12 @@ namespace RollingBonxai
     ////////////////////////////////////////////////////////
     //////////////////////Vector Impl///////////////////////
     ////////////////////////////////////////////////////////
-    
+
+    VectorChunkStorage::VectorChunkStorage() {
+        capacity_hint_ = 27;
+        chunks_.reserve(capacity_hint_);
+    }
+
     VectorChunkStorage::VectorChunkStorage(size_t capacity_hint) {
         // Reserve space minimally for 26 neighbours + 1 source
         capacity_hint_ = capacity_hint;
@@ -116,6 +121,11 @@ namespace RollingBonxai
     ////////////////////////////////////////////////////////
     //////////////////Unordered Map Impl////////////////////
     ////////////////////////////////////////////////////////
+    HashMapChunkStorage::HashMapChunkStorage() {
+        // Reserve space minimally for 26 neighbours + 1 source
+        capacity_hint_ = 27;
+        chunks_.reserve(capacity_hint_);
+    }
     
     HashMapChunkStorage::HashMapChunkStorage(size_t capacity_hint) {
         // Reserve space minimally for 26 neighbours + 1 source
