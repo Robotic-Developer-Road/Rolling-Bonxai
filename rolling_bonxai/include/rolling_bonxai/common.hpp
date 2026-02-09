@@ -271,7 +271,7 @@ public:
 private:
     
     /// @brief An owning unique pointer to the chunk
-    MapUPtr map_;
+    MapUPtr map_; 
 
     /// @brief The chunk coordinate corresponding to this chunk
     ChunkCoord chunk_coordinate_;

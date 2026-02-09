@@ -49,7 +49,7 @@ RollingOccupancyMap::RollingOccupancyMap(const AllParameters& params, std::share
     asyncio_manager_ = std::make_unique<AsyncChunkManager>(
         std::move(storage_backend_), params_.asyncio);
 
-    logger_->log_info("RollingOccupancyMap initialised: chunk_size=" 
+    logger_->log_info("[RollingBonxai]: RollingOccupancyMap initialised: chunk_size=" 
         + std::to_string(params_.chunk_size) 
         + " resolution=" + std::to_string(params_.map_params.resolution)
         + " policy=" + loading_policy_->getName());
@@ -61,7 +61,7 @@ RollingOccupancyMap::~RollingOccupancyMap()
     // Dirty chunks should be flushed by updateRolling / graceful shutdown
     // before reaching this point. Log a warning if there are still active chunks.
     if (!active_chunks_.empty()) {
-        logger_->log_warn("RollingOccupancyMap destroyed with " 
+        logger_->log_warn("[RollingBonxai]: RollingOccupancyMap destroyed with " 
             + std::to_string(active_chunks_.size()) + " active chunks remaining");
     }
 }
@@ -112,9 +112,12 @@ void RollingOccupancyMap::updateOccupancy(const std::vector<Vector3D>& points,
 {
     // defensive, this shouldnt be the case.
     if (points.empty()) {
+        logger_->log_warn("[RollingBonxai]: Pointcloud is empty in updateOccupancy");
         return;
     }
 
+    logger_->log_info("[RollingBonxai]: Dispatching rays to chunks");
+    
     // square of max range for quick comparisons
     const double max_range_sq = max_range * max_range;
 
@@ -257,12 +260,15 @@ void RollingOccupancyMap::updateRolling(
     tm_context.ego_velocity = source_lin_vel;
 
     bool transition_triggered = transition_manager_->shouldTriggerTransition(tm_context);
-
+    
     // ------------------------------------------------------------------
     // Step 3: If transition triggered, perform load/evict cycle
     // ------------------------------------------------------------------
     if (transition_triggered) {
         const ChunkCoord ref_chunk = transition_manager_->getRefChunkCoord();
+        logger_->log_info("[RollingBonxai]: Transition required into chunk ("
+                    + std::to_string(ref_chunk.x) + "," + std::to_string(ref_chunk.y) + ","
+                    + std::to_string(ref_chunk.z) + ")");
         performTransition(ref_chunk, source);
     }
 
@@ -320,6 +326,9 @@ void RollingOccupancyMap::pollPendingLoads()
                         meta.access_count = 1;
                         chunk_metadata_[coord] = meta;
                     }
+                    logger_->log_info("[RollingBonxai]: Loading to active -> chunk ("
+                        + std::to_string(coord.x) + "," + std::to_string(coord.y) + ","
+                        + std::to_string(coord.z) + ")");
                 } 
                 else 
                 {
@@ -420,7 +429,7 @@ void RollingOccupancyMap::performTransition(const ChunkCoord& ref_chunk,
             pending_loads_[coord] = std::move(future_opt.value());
         }
     }
-
+    logger_->log_info("[RollingBonxai]: Async Loads Issued!");
     // ------------------------------------------------------------------
     // C. Evict: save-if-dirty, then remove chunks the policy no longer wants
     // ------------------------------------------------------------------
@@ -428,7 +437,7 @@ void RollingOccupancyMap::performTransition(const ChunkCoord& ref_chunk,
     std::vector<ChunkCoord> to_evict;
 
     active_chunks_.forEachChunk(
-        [&](const ChunkCoord& coord, const ManagedChunk& chunk) {
+        [&](const ChunkCoord& coord, [[maybe_unused]] const ManagedChunk& chunk) {
             // Never evict the current reference chunk
             if (coord == ref_chunk) {
                 return;
@@ -453,8 +462,18 @@ void RollingOccupancyMap::performTransition(const ChunkCoord& ref_chunk,
             auto map_uptr = managed->transferMapOwnership();
             if (map_uptr) {
                 // Move the grid out for the save pipeline
+                [[maybe_unused]] auto future_bool = 
                 asyncio_manager_->saveAsync(coord, std::move(map_uptr->getGrid()));
             }
+            logger_->log_info("[RollingBonxai]: (Direct) Saving dirty chunk ("
+            + std::to_string(coord.x) + "," + std::to_string(coord.y) + ","
+            + std::to_string(coord.z) + ")");
+            
+        }
+        else{
+            logger_->log_info("[RollingBonxai]: (Lazy) Not saving clean chunk ("
+            + std::to_string(coord.x) + "," + std::to_string(coord.y) + ","
+            + std::to_string(coord.z) + ")");
         }
 
         // Remove from active storage (ManagedChunk destroyed here)
@@ -463,14 +482,14 @@ void RollingOccupancyMap::performTransition(const ChunkCoord& ref_chunk,
         // Note: we intentionally keep chunk_metadata_ for this coord.
         // The temporal policy may need historical metadata for future decisions.
     }
+    logger_->log_info("[RollingBonxai]: Async saves issued!");
 
-    logger_->log_info("performTransition: ref=("
+    logger_->log_info("[RollingBonxai]: performTransition: ref=("
         + std::to_string(ref_chunk.x) + "," + std::to_string(ref_chunk.y) + ","
         + std::to_string(ref_chunk.z) + ") desired=" + std::to_string(desired_set.size())
-        + " active=" + std::to_string(active_chunks_.size())
-        + " pending=" + std::to_string(pending_loads_.size())
-        + " evicted=" + std::to_string(to_evict.size()));
-
+        + " active-chunks  =" + std::to_string(active_chunks_.size())
+        + " pending-loads  =" + std::to_string(pending_loads_.size())
+        + " evicted-chunks =" + std::to_string(to_evict.size()));
 }
 
 // ============================================================================
@@ -706,6 +725,7 @@ void RollingOccupancyMap::releaseUnusedMemory()
             }
         }
     );
+    logger_->log_info("[RollingBonxai]: Releasing Unused Memory!");
 }
 
 void RollingOccupancyMap::shrinkToFit()
@@ -719,6 +739,7 @@ void RollingOccupancyMap::shrinkToFit()
             }
         }
     );
+    logger_->log_info("[RollingBonxai]: Shrinking buffers!");
 }
 
 // ============================================================================
