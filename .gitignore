@@ -56,4 +56,6 @@ chunks/
 
 !configs/.gitkeep
 !configs/default_params.yaml
-private_docs
+
+archive/
+private_docs/
