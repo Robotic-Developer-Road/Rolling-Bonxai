@@ -15,7 +15,8 @@ def generate_launch_description():
         '/tf_static',
         '/bonxai/occupancy_stats',
         '/bonxai/occupied_voxels',
-        "/zed/zed_node/point_cloud/cloud_registered"
+        '/zed/zed_node/point_cloud/cloud_registered',
+        '/zed/zed_node/rgb/color/rect/image'
     ]
 
     START_DELAY_SEC = 2.0  # give nodes time to come up
@@ -31,7 +32,7 @@ def generate_launch_description():
             '--compression-mode', 'file',
             '--compression-format', 'zstd',
             '-o', BAG_NAME,
-            *TOPICS,
+            '--topics', *TOPICS,
         ],
         output='screen',
         emulate_tty=True,

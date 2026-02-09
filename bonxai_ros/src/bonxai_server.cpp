@@ -434,9 +434,9 @@ void BonxaiServer::fill_stats_msg(bonxai_msgs::msg::OccupancyMapStats& msg)
   }
   
   // Memory usage
-  msg.total_memory_bytes = stats.total_memory_bytes;
-  msg.grid_memory_bytes = stats.grid_memory_bytes;
-  msg.buffer_memory_bytes = stats.buffer_memory_bytes;
+  msg.total_memory_mib =  static_cast<double>(stats.total_memory_bytes) / 1048576.0f;
+  msg.grid_memory_mib =   static_cast<double>(stats.grid_memory_bytes) / 1048576.0f;
+  msg.buffer_memory_mib = static_cast<double>(stats.buffer_memory_bytes) / 1048576.0f;
   
   // Cell counts
   msg.total_active_cells = stats.total_active_cells;
@@ -570,7 +570,7 @@ void BonxaiServer::stats_timer_callback()
   RCLCPP_INFO(get_logger(),
     "Stats published: %lu active cells, %.1f MB, occupancy=%.2f%%",
     msg.total_active_cells,
-    static_cast<double>(msg.total_memory_bytes) / 1048576.0,
+    static_cast<double>(msg.total_memory_mib),
     msg.occupancy_ratio * 100.0f);
 }
 
