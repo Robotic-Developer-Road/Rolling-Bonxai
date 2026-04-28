@@ -19,7 +19,7 @@ rolling_bonxai_server_node:
 
     rolling:
       coordinate_system:
-        chunk_size: 5.0 #double m
+        chunk_size: 2.0 #double m
         
       transition_manager:
         hysteresis_ratio: 0.2 #[0.01,1.0]
@@ -27,7 +27,7 @@ rolling_bonxai_server_node:
       loading_policy:
         name: "neighborhood" # "planar","temporal" ##String
         neighborhood:
-          radius: 1 #int
+          radius: 2 #int
         planar:
           radius: 1 #int
           z_min: 0 #int
@@ -42,6 +42,7 @@ rolling_bonxai_server_node:
         full_save_folder_path: "/home/tmp/bonxai_chunks"
 
       asyncio:
+        enable_io: false
         num_load_threads: 3 #int
         num_save_threads: 1 #int
 

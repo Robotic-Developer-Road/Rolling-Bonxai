@@ -93,6 +93,8 @@ void RollingBonxaiServer::loadParameters()
   rolling_params_.full_save_folder_path =
     declare_parameter<std::string>("rolling.storage.full_save_folder_path", "");
 
+  rolling_params_.asyncio.enable_io = declare_parameter<bool>("rolling.asyncio.enable_io",true);
+  
   rolling_params_.asyncio.num_load_threads =
     static_cast<size_t>(declare_parameter<int>("rolling.asyncio.num_load_threads", 3));
 

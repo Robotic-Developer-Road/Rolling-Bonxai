@@ -210,42 +210,42 @@ void AsyncChunkManager::loadWorkerLoop()
 
         LoadRequest& request = request_opt.value();
 
-        try {
-            // Attempt to load from disk
-            auto grid_ptr = backend_->load(request.coord);
-            // result to store
-            std::unique_ptr<Bonxai::OccupancyMap> result;
-
-            if (grid_ptr) {
-                // Chunk existed on disk — construct OccupancyMap from deserialized VoxelGrid
-                auto options = request.options_factory();
-                result = std::make_unique<Bonxai::OccupancyMap>(
-                    options, std::move(*grid_ptr)
-                );
-            } else {
-                // Chunk does not exist — use factory to create new empty map
-                result = request.map_factory();
-            }
-
-            // Fulfill promise
-            request.promise->set_value(std::move(result));
-            stats_.loads_completed.fetch_add(1, std::memory_order_relaxed);
-
-        } catch (const std::exception& e) {
-            // Load failed — propagate exception through promise
+        std::unique_ptr<Bonxai::VoxelGrid<Bonxai::Occupancy::CellOcc>> grid_ptr {nullptr};
+        if (config_.enable_io) {
             try {
-                request.promise->set_exception(std::current_exception());
-            } catch (...) {
-                // Promise already satisfied (shouldn't happen, but be defensive)
-            }
-            stats_.loads_failed.fetch_add(1, std::memory_order_relaxed);
+                grid_ptr = backend_->load(request.coord);
+            } 
+            catch (const std::exception& e) {
+                // Load failed — propagate exception through promise
+                try {
+                    request.promise->set_exception(std::current_exception());
+                } catch (...) {/*Promise already satisfied (shouldn't happen, but be defensive)*/}
+                stats_.loads_failed.fetch_add(1, std::memory_order_relaxed);
 
-            std::ostringstream oss;
-            oss << "[AsyncChunkManager] Load failed for coord ("
-                << request.coord.x << ", " << request.coord.y << ", " << request.coord.z 
-                << "): " << e.what();
-            std::cerr << oss.str() << std::endl;
+                std::ostringstream oss;
+                oss << "[AsyncChunkManager] Load failed for coord ("
+                    << request.coord.x << ", " << request.coord.y << ", " << request.coord.z 
+                    << "): " << e.what();
+                std::cerr << oss.str() << std::endl;
+            }
         }
+        
+        // result to store
+        std::unique_ptr<Bonxai::OccupancyMap> result;
+        if (grid_ptr) {
+            // Chunk existed on disk — construct OccupancyMap from deserialized VoxelGrid
+            auto options = request.options_factory();
+            result = std::make_unique<Bonxai::OccupancyMap>(
+                options, std::move(*grid_ptr)
+            );
+        }
+        else {
+            result = request.map_factory();
+        }
+
+        // Fulfill promise
+        request.promise->set_value(std::move(result));
+        stats_.loads_completed.fetch_add(1, std::memory_order_relaxed);
 
         // Remove from pending_loads_ regardless of success/failure
         removePendingLoad(request.coord);
@@ -264,7 +264,8 @@ void AsyncChunkManager::saveWorkerLoop()
         SaveRequest& request = request_opt.value();
 
         try {
-            bool success = backend_->save(request.coord, *request.griduptr);
+            
+            bool success = config_.enable_io ? backend_->save(request.coord, *request.griduptr) : true;
             request.promise->set_value(success);
 
             if (success) {
