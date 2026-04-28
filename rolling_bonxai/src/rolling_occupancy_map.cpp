@@ -48,11 +48,16 @@ RollingOccupancyMap::RollingOccupancyMap(const AllParameters& params, std::share
     // Create the async I/O manager (takes ownership of storage_backend_)
     asyncio_manager_ = std::make_unique<AsyncChunkManager>(
         std::move(storage_backend_), params_.asyncio);
+    
+    std::ostringstream log_oss;
+    log_oss << "[RollingBonxai: Initialised!]\n" <<
+    "VoxelResolution: " << std::to_string(params_.map_params.resolution) << "\n" <<  
+    "ChunkSize: " << std::to_string(params_.chunk_size) << "\n" <<
+    "Hysteresis:" << std::to_string(params_.hysteresis_ratio) << "\n" <<
+    "LoadEvictPolicy: " << loading_policy_->getName() << "\n" << 
+    "IO Enabled: " << params_.asyncio.enable_io << "\n";
 
-    logger_->log_info("[RollingBonxai]: RollingOccupancyMap initialised: chunk_size=" 
-        + std::to_string(params_.chunk_size) 
-        + " resolution=" + std::to_string(params_.map_params.resolution)
-        + " policy=" + loading_policy_->getName());
+    logger_->log_info(log_oss.str());
 }
 
 RollingOccupancyMap::~RollingOccupancyMap()

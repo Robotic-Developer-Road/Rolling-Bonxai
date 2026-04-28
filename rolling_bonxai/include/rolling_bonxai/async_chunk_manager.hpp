@@ -22,6 +22,7 @@ namespace RollingBonxai
  */
 struct AsyncChunkManagerConfig
 {
+    bool enable_io{true};
     size_t num_load_threads{3};     ///< Number of dedicated load worker threads
     size_t num_save_threads{1};     ///< Number of dedicated save worker threads
     
