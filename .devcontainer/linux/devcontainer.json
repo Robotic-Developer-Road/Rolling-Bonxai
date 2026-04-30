@@ -1,0 +1,76 @@
+{
+    // Rolling Bonxai dev container — ROS 2 Humble (Ubuntu 22.04), Linux/X11
+    // Uses the same image as the rolling_bonxai compose service
+    // so what you build in VS Code is exactly what runs in production.
+    //
+    // To open: CTRL+SHIFT+P → "Dev Containers: Reopen in Container"
+    //           → select "rolling_bonxai_humble"
+    "name": "rolling_bonxai_humble",
+
+    // Build the deps stage only — source is bind-mounted in,
+    // not baked into the image. This makes rebuilds instant.
+    "build": {
+        "dockerfile": "../.docker/Dockerfile.rolling_bonxai",
+        "context": "..",
+        "target": "deps"
+    },
+
+    // Mount the entire repo into the workspace src tree,
+    // matching the path used in the build stage.
+    "workspaceMount": "source=${localWorkspaceFolder},target=/ros2_ws/src/Rolling-Bonxai,type=bind,consistency=cached",
+    "workspaceFolder": "/ros2_ws",
+
+    // Named volumes keep build/ install/ log/ off the host filesystem
+    // so Linux file permissions and inotify work correctly.
+    "mounts": [
+        { "source": "rolling_bonxai_build",   "target": "/ros2_ws/build",   "type": "volume" },
+        { "source": "rolling_bonxai_install",  "target": "/ros2_ws/install", "type": "volume" },
+        { "source": "rolling_bonxai_log",      "target": "/ros2_ws/log",     "type": "volume" },
+        // X11 socket for running GUI tools (e.g. rqt) from within the container
+        { "source": "/tmp/.X11-unix", "target": "/tmp/.X11-unix", "type": "bind" }
+    ],
+
+    "remoteEnv": {
+        // Pass the host DISPLAY variable so X11 apps work
+        "DISPLAY": "${localEnv:DISPLAY}",
+        // Use the same ROS domain as the SITL container
+        "ROS_DOMAIN_ID": "0"
+    },
+
+    "runArgs": [
+        "--network=host",
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined",
+        // DRI device for GPU-accelerated rendering (optional, safe to remove if unavailable)
+        "--device", "/dev/dri:/dev/dri"
+    ],
+
+    // First-time setup: install rosdep deps + build the workspace
+    "onCreateCommand": "bash /ros2_ws/src/Rolling-Bonxai/.docker/devcontainer_on_create.sh",
+
+    // Every start: source the workspace and print a status banner
+    "postStartCommand": "bash /ros2_ws/src/Rolling-Bonxai/.docker/devcontainer_post_start.sh",
+
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "C_Cpp.default.compileCommands": "/ros2_ws/build/compile_commands.json",
+                "cmake.buildDirectory": "/ros2_ws/build"
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-iot.vscode-ros",
+                "ms-python.python",
+                "twxs.cmake",
+                "ms-vscode.cmake-tools"
+            ]
+        }
+    },
+
+    "forwardPorts": [8765],
+    "portsAttributes": {
+        "8765": { "label": "Foxglove Bridge" }
+    }
+}
