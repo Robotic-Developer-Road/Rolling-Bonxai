@@ -1,0 +1,91 @@
+# ============================================================
+# .docker/Dockerfile.rolling_bonxai_jazzy
+#
+# ROS 2 Jazzy (Ubuntu 24.04 Noble) build of Rolling Bonxai.
+#
+# Use this when you want to develop / run Rolling Bonxai on
+# Jazzy while the SITL container stays on Humble.  DDS
+# (Fast-DDS / CycloneDDS) is wire-compatible between Humble and
+# Jazzy on the same ROS_DOMAIN_ID, so topics cross the distro
+# boundary transparently on network_mode: host.
+#
+# Two-stage build (same pattern as the Humble Dockerfile):
+#   deps  — all apt deps, no source  (devcontainer uses this)
+#   build — colcon build             (compose uses this)
+#
+# Build from repo root:
+#   docker build -f .docker/Dockerfile.rolling_bonxai_jazzy \
+#                --target build -t rolling_bonxai:jazzy .
+# ============================================================
+
+# ── Stage 1: deps ────────────────────────────────────────────
+FROM ros:jazzy-ros-base AS deps
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+# On Ubuntu 24.04 (Noble), gz-harmonic is available directly from
+# the standard ROS apt repository — no separate OSRF key needed.
+# ros-jazzy-ros-gz-bridge pulls gz-harmonic automatically.
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build tools
+    build-essential \
+    cmake \
+    git \
+    wget \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    python3-pip \
+    # ROS 2 Jazzy packages needed by rolling_bonxai_ros
+    ros-jazzy-tf2-ros \
+    ros-jazzy-tf2-eigen \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-visualization-msgs \
+    ros-jazzy-pcl-conversions \
+    ros-jazzy-std-srvs \
+    ros-jazzy-rclcpp-components \
+    ros-jazzy-foxglove-bridge \
+    # Gazebo Harmonic bridge (for /clock topic relay from SITL)
+    ros-jazzy-ros-gz-bridge \
+    # C++ dependencies
+    libeigen3-dev \
+    libpcl-dev \
+    libyaml-cpp-dev \
+    libboost-all-dev \
+    # Debug tools
+    gdb \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rosdep init 2>/dev/null || true && rosdep update
+
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc && \
+    echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" \
+         >> /root/.bashrc
+
+# ── Stage 2: build ───────────────────────────────────────────
+FROM deps AS build
+
+WORKDIR /ros2_ws
+
+COPY . src/Rolling-Bonxai/
+
+RUN source /opt/ros/jazzy/setup.bash && \
+    rosdep install \
+        --from-paths src \
+        --ignore-src \
+        --rosdistro jazzy \
+        -y \
+        --skip-keys "libpcl-all-dev" \
+    || true
+
+RUN source /opt/ros/jazzy/setup.bash && \
+    colcon build \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --event-handlers console_cohesion+
+
+RUN echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
+
+WORKDIR /ros2_ws
+CMD ["bash"]
